@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "CBoil.h"
 #include "strutil.h"
@@ -55,8 +56,9 @@ void progress(char** src, Capture* capture, int amount) {
 bool compString(char** src, Capture* capture, const char* string, uint16_t* offset) {
     // Compare strings and progress if match
     *offset += strlen(string) + 1;
-    for (int i = 0; i < strlen(string); i++)
-        if (string[i] != *src[i]) return false;
+    for (int i = 0; i < strlen(string); i++) {
+        if (string[i] != (*src)[i]) return false;
+    }
     progress(src, capture, strlen(string));
     return true;
 }
@@ -213,6 +215,10 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
     char max;
     switch(rule->type) {
         case ALL:
+            if (strlen(*src) == 0) {
+                *match = false;
+                break;
+            }
             // Matches any char
             progress(src, capture, 1);
             *off += sizeof(Rule);
@@ -224,8 +230,10 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
                 if (rule->child[offset] == '\0') {
                     cap = _parse((Rule*)&rule->child[offset], src, NULL, match, &offset, curr);
                     if (*match) break;
-              } else if (compString(src, NULL, &rule->child[offset], &offset)) break;
-                else *match = false;
+              } else if (compString(src, NULL, &rule->child[offset], &offset)) {
+                *match = true;
+                break;
+              } else *match = false;
                 idx++;
             }
 
@@ -240,12 +248,12 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
 
             if (rule->child[offset] == '\0')
                 cap = _parse((Rule*)&rule->child[offset], src, &newCap, match, &offset, curr);
-            else if (compString(src, &newCap, &rule->child[offset], &offset)) break;
-            else *match = false;
+            else if (!compString(src, &newCap, &rule->child[offset], &offset)) *match = false;
 
             *off += offset + HEADER_SIZE;
             if (*match) {
                 curr = malloc(sizeof(Token));
+                if (!cap) cap = &newCap;
                 *curr = (Token){0, NULL, cap, NULL, cap->lastCap};
                 if (cap->lastCap) cap->lastCap->next = curr;
                 cap->lastCap = curr;
@@ -286,8 +294,10 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
                 if (rule->child[offset] == '\0') {
                     cap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
                     if (*match) break;
-              } else if (compString(src, capture, &rule->child[offset], &offset)) break;
-                else *match = false;
+              } else if (compString(src, capture, &rule->child[offset], &offset)) {
+                *match = true;
+                break;
+              } else *match = false;
                 idx++;
             }
 
@@ -297,15 +307,15 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
         case IGNORECASE:
             // Match string ignoring case
             for (int i = 0; i < strlen(&rule->child[offset]); i++) {
-                if (isAlpha(*src[i]) && isAlpha(rule->child[i])) {
-                    if (isLower(*src[i])) a = *src[i];
-                    else a = *src[i] + 32;
+                if (isAlpha((*src)[i]) && isAlpha(rule->child[i])) {
+                    if (isLower((*src)[i])) a = (*src)[i];
+                    else a = (*src)[i] + 32;
                     
                     if (isLower(rule->child[i])) b = rule->child[i];
                     else b = rule->child[i] + 32;
                     
                     if (a != b) *match = false;
-              } else if (*src[i] != rule->child[i]) *match = false;
+              } else if ((*src)[i] != rule->child[i]) *match = false;
                 
                 if (!*match) break;
             }
@@ -343,9 +353,10 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
 
                 if (rule->child[offset] == '\0')
                     cap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
-                else if (!compString(src, capture, &rule->child[offset], &offset)) *match = firstMatch;
+                else if (!compString(src, capture, &rule->child[offset], &offset)) *match = false;
 
                 if (*match) firstMatch = true;
+                if (!*match) break;
             }
 
             if (firstMatch) *match = true;

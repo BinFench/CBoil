@@ -17,11 +17,11 @@ void append(Token* token, char* str, uint16_t len) {
 }
 
 bool isLower(char ch) {
-    return (97 >= ch && ch <= 122);
+    return (97 <= ch && ch <= 122);
 }
 
 bool isUpper(char ch) {
-    return (65 >= ch && ch <= 90);
+    return (65 <= ch && ch <= 90);
 }
 
 bool isAlpha(char ch) {
