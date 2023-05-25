@@ -1,0 +1,52 @@
+#ifndef CBOIL_MACROS
+#define CBOIL_MACROS
+
+// Include computer generated macros
+#include "CBoildef/ASCII.def"
+// ASCII_NUMARGS(...) - Count every argument, return an ASCII char
+// ASCII##N           - Return the Nth ASCII char
+// ASCII(type)        - Alias for ASCII##type
+#include "CBoildef/EVERY_SECOND.def"
+// EVERY_SECOND(...)  - Returns every other argument
+#include "CBoildef/MAP.def"
+// MAP(f, ...)        - Performs f on every argument
+// MAP_LIST(f, ...)   - Performs f on every argument, comma separated
+#include "CBoildef/VARIADIC.def"
+// numargs(...) counts arguments
+
+#define NULLSTR                 "\0\0\0\0\0\0\0\0"
+#define PASTE(...)              __VA_OPT__(__VA_ARGS__ "\0")
+#define SPACES(args...)         MAP(PASTE, args)
+#define STRING(...)             __VA_OPT__(#__VA_ARGS__)
+
+#define EMPTY(type)             "\0" ASCII(type) ASCII0 NULLSTR
+#define SINGLE(type, arg)       "\0" ASCII(type) ASCII1 arg "\0"
+#define MULTI(type, args...)    "\0" ASCII(type) ASCII_NUMARGS(args) SPACES(args)
+#define ANY                     EMPTY(0)
+#define anyof(args...)          MULTI(1, args)
+#define capture(string, arg)    "\0" ASCII2 ASCII2 string "\0" arg "\0"
+#define charrange(a, b)         SINGLE(3, a b)
+#define END                     EMPTY(4)
+#define firstof(args...)        MULTI(5, args)
+#define ignorecase(string)      SINGLE(6, string)
+#define noneof(args...)         MULTI(7, args)
+#define oneormore(arg)          SINGLE(8, arg)
+#define optional(arg)           SINGLE(9, arg)
+#define subrule(arg)            SINGLE(10, #arg)
+#define sequence(args...)       MULTI(11, args)
+#define test(arg)               SINGLE(12, arg)
+#define testnot(arg)            SINGLE(13, arg)
+#define zeroormore(arg)         optional(oneormore(arg))
+
+#define RULEINT(...)            __VA_OPT__(const int __VA_ARGS__ = __COUNTER__;)
+#define RULEINTS(arg, args...)  MAP(RULEINT, arg, EVERY_SECOND(args))
+#define RULENAMES(arg, args...) const char* names[] = {#arg MAP_LIST(STRING, EVERY_SECOND(args))""};
+#define RULEARR(args...)        const char* rules[] = {""MAP_LIST(PASTE, EVERY_SECOND(args))};
+#define RULES(arg, args...)     RULEINTS(arg, args) \
+                                const int CBOIL__size = __COUNTER__; \
+                                RULENAMES(arg, args) \
+                                RULEARR(arg, args)
+
+#define PARSE(rule, str)        parse(rules[rule+1], str)
+
+#endif
