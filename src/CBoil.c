@@ -1,5 +1,4 @@
 #include <stdbool.h>
-#include <stdio.h>
 
 #include "CBoil.h"
 #include "strutil.h"
@@ -43,12 +42,14 @@ const uint8_t RULE_SIZE = sizeof(Rule);
 
 void progress(char** src, Capture* capture, int amount) {
     // Encapsulate substring in token within capture, repoint src by amount
-    if (capture && capture->lastCap == NULL) {
+    if (capture && !capture->lastCap) {
         capture->lastCap = malloc(sizeof(Token));
         *(capture->lastCap) = (Token){amount, NULL, capture, NULL, NULL};
         capture->firstCap = capture->lastCap;
         capture->numTokens++;
         append(capture->firstCap, *src, amount);
+    } else if (capture) {
+        append(capture->lastCap, *src, amount);
     }
     *src += amount;
 }
@@ -143,7 +144,7 @@ CaptureKVList* get(Capture* capture, const char* name) {
     uint64_t hash = hash_key(name);
     size_t index = (size_t)(hash & (uint64_t)(capture->capacity - 1));
 
-    while (capture->subcaptures[index].key != NULL) {
+    while (capture->subcaptures[index].key) {
         if (strcmp(name, capture->subcaptures[index].key) == 0)
             return &(capture->subcaptures[index]);
         index++;
@@ -160,7 +161,7 @@ Capture* insert(Capture* parent, Capture child) {
         return parent;
     }
     CaptureKVList* match = get(parent, child.name);
-    if (match == NULL && parent->numKVs >= parent->capacity / 2) {
+    if (!match && parent->numKVs >= parent->capacity / 2) {
         if (parent->capacity == 0) parent->capacity = INITIAL_CAPACITY;
         else parent->capacity *= 2;
 
@@ -170,7 +171,7 @@ Capture* insert(Capture* parent, Capture child) {
         else for (int i = parent->capacity / 2; i < parent->capacity; i++)
             parent->subcaptures[i] = (CaptureKVList){NULL, 0, NULL};
         parent->numKVs++;
-  } else if (match != NULL) {
+  } else if (match) {
         match->matches++;
         match->captures = realloc(match->captures, match->matches*sizeof(Capture));
         match->captures[match->matches - 1] = child;
@@ -180,7 +181,7 @@ Capture* insert(Capture* parent, Capture child) {
     uint64_t hash = hash_key(child.name);
     size_t index = (size_t)(hash & (uint64_t)(parent->capacity - 1));
 
-    while (parent->subcaptures[index].key != NULL) {
+    while (parent->subcaptures[index].key) {
         index++;
         if (index >= parent->capacity) index = 0;
     }
@@ -259,6 +260,10 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
                 cap->lastCap = curr;
                 cap = insert(capture, newCap);
                 redir(&newCap, cap);
+            } else if (newCap.firstCap) {
+                // Likely potential source of memory leaks, but need test to prove
+                if (newCap.firstCap->str) free(newCap.firstCap->str);
+                free(newCap.firstCap);
             }
             break;
 
@@ -291,6 +296,7 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
         case FIRSTOF:
             // Match on first matching subrule
             while (idx < rule->numChildren) {
+                *match = true;
                 if (rule->child[offset] == '\0') {
                     cap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
                     if (*match) break;
@@ -368,7 +374,7 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
             // Always match, but only progress if subrule matches
             if (rule->child[offset] == '\0') {
                 cap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
-                if (match && cap == NULL) cap = capture;
+                if (match && !cap) cap = capture;
           } else compString(src, NULL, &rule->child[offset], &offset);
             
             *match = true;
@@ -392,7 +398,7 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
                     seqCap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
-                    if (seqCap != NULL) cap = seqCap;
+                    if (seqCap) cap = seqCap;
                     if (!*match) break;
               } else if (!compString(src, capture, &rule->child[offset], &offset)) {
                     *match = false;
@@ -440,16 +446,20 @@ void _clear(Capture* capture, bool isRoot) {
 
     Token* token = capture->firstCap;
     for (int i = 0; i < capture->numTokens;) {
+        if (!token) break;
         Token* next = token->next;
         if (capture == token->capture) {
             i++;
             free(token->str);
             free(token);
+        } else if (token == capture->firstCap) {
+            free(token->str);
+            free(token);
         }
         token = next;
     }
-    if (token != NULL) free(token);
-    if (capture->lastCap != token) free(capture->lastCap);
+    if (token) free(token);
+    if (capture->lastCap != token && capture->lastCap != capture->firstCap) free(capture->lastCap);
 
     if (capture->numKVs != 0) {
         for (int i = 0; i < capture->capacity; i++) {

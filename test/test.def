@@ -6,3 +6,4 @@
 #define TEST(test)              ;do {testNum++; test testsPassed++;} while(0);
 #define TESTS(tests...)         int testNum = 0; int testsPassed = 0; SPACES(tests); printf("TESTS PASSED %d/%d\n", testsPassed, numargs(tests))
 #define ASSERT(cnd, msg, ...)   if (!(cnd)) {printf("TEST %d ERROR: " msg, testNum __VA_OPT__(, __VA_ARGS__)); break;}
+#define CALCULATE(eqn, res)     TEST(int result = calculate(eqn); ASSERT(result == res, "Expected %s = %d, but got %d\n", eqn, res, result);)

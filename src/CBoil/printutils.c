@@ -18,6 +18,7 @@ int getCaptureSize(Capture* capture, int indent, bool singular) {
 
     Token* token = capture->firstCap;
     for (int i = 0; i < capture->numTokens;) {
+        if (!token) break;
         if (capture == token->capture) {
             i++;
             captureSize += indent + 3 + token->size + 2;
@@ -51,7 +52,7 @@ int getCaptureSize(Capture* capture, int indent, bool singular) {
                             captureSize += 1;
                     }
                     //             indent + 2 ]
-                    captureSize += indent + 3;
+                    captureSize += indent + 4;
                 } else {
                     captureSize += getCaptureSize(captures->captures, indent + 2, true) + 1;
                 }
@@ -106,6 +107,7 @@ int writeCapture(char* dump, Capture* capture, int indent, bool singular, int po
 
     Token* token = capture->firstCap;
     for (int i = 0; i < capture->numTokens;) {
+        if (!token) break;
         if (capture == token->capture) {
             i++;
             for (int i = 0; i < indent+2; i++) {
@@ -155,6 +157,10 @@ int writeCapture(char* dump, Capture* capture, int indent, bool singular, int po
                 }
                 first = false;
                 if (captures->matches > 1) {
+                    for (int i = 0; i < indent+2; i++) {
+                        dump[newPos + i] = '\t';
+                    }
+                    newPos += indent+2;
                     dump[newPos] = '"';
                     newPos++;
                     newPos += strCopy(dump, newPos, captures->key, -1);

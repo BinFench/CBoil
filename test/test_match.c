@@ -53,139 +53,141 @@ int main() {
         ),
         TEST(
             Capture* res = parse(capture("pass", "pass"), "pass");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("pass", "pass"), "fail");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", ANY), "pass");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             ASSERT(res->firstCap->size == 1 && res->firstCap->str[0] == 'p', "Expected to match 'p'\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", ANY), "");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", anyof("pass")), "pass");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", anyof("pass", "succeed")), "fail");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", anyof("pass", "succeed")), "succeed");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", anyof("pass", "succeed")), "pas");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", charrange("a", "z")), "p");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", charrange("g", "z")), "f");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", END), "");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", END), "f");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", firstof("fail", "pass", "succeed")), "pass");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", firstof("pass", "succeed")), "fail");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", ignorecase("pAss")), "pass");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("pass", ignorecase("pass")), "pAsS");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", ignorecase("pass")), "fail");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", noneof("f", "l", "y")), "pass");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", noneof("f", "l", "y")), "fail");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", oneormore("pass")), "pass");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("pass", oneormore("pass")), "passpass");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("pass", oneormore("pass")), "passpassfail");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", oneormore("pass")), "failfail");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", sequence("p", "a", "s", "s")), "pass");
-            ASSERT(res != NULL, "Expected string to pass\n");
+            ASSERT(res, "Expected string to pass\n");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", sequence("f", "a", "i", "s")), "fail");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", test("pass")), "pass");
-            ASSERT(res != NULL, "Expected string to pass\n");
-            ASSERT(res->firstCap == NULL, "Expected empty match");
+            ASSERT(res, "Expected string to pass\n");
+            ASSERT(!res->firstCap, "Expected empty match");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", test("pass")), "fail");
-            ASSERT(res == NULL, "Expected string to fail\n");
+            ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
             Capture* res = parse(capture("pass", testnot("fail")), "pass");
-            ASSERT(res != NULL, "Expected string to pass\n");
-            ASSERT(res->firstCap == NULL, "Expected empty match");
+            ASSERT(res, "Expected string to pass\n");
+            ASSERT(!res->firstCap, "Expected empty match");
             clear(res);
         ),
         TEST(
             Capture* res = parse(capture("fail", testnot("fail")), "fail");
-            ASSERT(res == NULL, "Expected string to fail\n");
-        )
+            ASSERT(!res, "Expected string to fail\n");
+        ),
+        CALCULATE("3+1", 4),
+        CALCULATE("(7*2+6)/10", 2)
     );
     return 0;
 }
