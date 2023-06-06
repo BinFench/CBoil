@@ -1,5 +1,5 @@
-#ifndef CBOIL
-#define CBOIL
+#ifndef CBOILLIB
+#define CBOILLIB
 
 #include <stdint.h>
 
@@ -36,8 +36,12 @@ extern const char* names[];
 extern const char* rules[];
 extern const int CBOIL__size;
 
-Capture* parse(const char* rule, char* src);
-CaptureKVList* get(Capture* capture, const char* name);
-void clear(Capture* capture);
+typedef struct CBoilLib {
+    Capture* (*parse)(const char* rule, char* src);
+    CaptureKVList* (*get)(Capture* capture, const char* name);
+    void (*clear)(Capture* capture);
+} CBoilLib;
+
+extern const CBoilLib CBoil;
 
 #endif

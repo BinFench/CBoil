@@ -12,29 +12,29 @@ int main() {
             Capture* res = PARSE(inputLine, "1");
             ASSERT(res, "Failed to match\n");
             ASSERT(strcmp(res->name, "expression") == 0, "Expected capture named 'expression', got: %s\n", res->name);
-            CaptureKVList* terms = get(res, "term");
+            CaptureKVList* terms = CBoil.get(res, "term");
             ASSERT(terms, "Expected 'term' in 'expression', but not found\n");
             Capture* term = terms->captures;
-            CaptureKVList* factors = get(term, "factor");
+            CaptureKVList* factors = CBoil.get(term, "factor");
             ASSERT(factors, "Expected 'factor' in 'term', but not found\n");
             Capture* factor = factors->captures;
-            CaptureKVList* numbers = get(factor, "number");
+            CaptureKVList* numbers = CBoil.get(factor, "number");
             ASSERT(numbers, "Expected 'number' in 'factor', but not found\n");
             Capture* number = numbers->captures;
             ASSERT(atoi(number->firstCap->str) == 1, "Expected to match '1', but got %s\n", number->firstCap->str);
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
             Capture* res = PARSE(inputLine, "1+2");
             ASSERT(res, "Failed to match\n");
             ASSERT(strcmp(res->name, "expression") == 0, "Expected capture named 'expression', got: %s\n", res->name);
-            CaptureKVList* terms = get(res, "term");
+            CaptureKVList* terms = CBoil.get(res, "term");
             ASSERT(terms, "Expected 'term' in 'expression', but not found\n");
             Capture* term = terms->captures;
-            CaptureKVList* factors = get(term, "factor");
+            CaptureKVList* factors = CBoil.get(term, "factor");
             ASSERT(factors, "Expected 'factor' in 'term', but not found\n");
             Capture* factor = factors->captures;
-            CaptureKVList* numbers = get(factor, "number");
+            CaptureKVList* numbers = CBoil.get(factor, "number");
             ASSERT(numbers, "Expected 'number' in 'factor', but not found\n");
             Capture* number = numbers->captures;
             ASSERT(atoi(number->firstCap->str) == 1, "Expected to match '1', but got %s\n", number->firstCap->str);
@@ -42,148 +42,148 @@ int main() {
             Token* first = res->firstCap;
             ASSERT(strcmp(first->str, "+") == 0, "Expected token '+', got '%s'\n", first->str);
             Capture* term2 = terms->captures + 1;
-            CaptureKVList* factors2 = get(term2, "factor");
+            CaptureKVList* factors2 = CBoil.get(term2, "factor");
             ASSERT(factors, "Expected 'factor' in 'term', but not found\n");
             Capture* factor2 = factors2->captures;
-            CaptureKVList* numbers2 = get(factor2, "number");
+            CaptureKVList* numbers2 = CBoil.get(factor2, "number");
             ASSERT(numbers2, "Expected 'number' in 'factor', but not found\n");
             Capture* number2 = numbers2->captures;
             ASSERT(atoi(number2->firstCap->str) == 2, "Expected to match '1', but got %s\n", number->firstCap->str);
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("pass", "pass"), "pass");
+            Capture* res = CBoil.parse(capture("pass", "pass"), "pass");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("pass", "pass"), "fail");
+            Capture* res = CBoil.parse(capture("pass", "pass"), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", ANY), "pass");
+            Capture* res = CBoil.parse(capture("pass", ANY), "pass");
             ASSERT(res, "Expected string to pass\n");
             ASSERT(res->firstCap->size == 1 && res->firstCap->str[0] == 'p', "Expected to match 'p'\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", ANY), "");
+            Capture* res = CBoil.parse(capture("fail", ANY), "");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", anyof("pass")), "pass");
+            Capture* res = CBoil.parse(capture("pass", anyof("pass")), "pass");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", anyof("pass", "succeed")), "fail");
+            Capture* res = CBoil.parse(capture("fail", anyof("pass", "succeed")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", anyof("pass", "succeed")), "succeed");
+            Capture* res = CBoil.parse(capture("pass", anyof("pass", "succeed")), "succeed");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", anyof("pass", "succeed")), "pas");
+            Capture* res = CBoil.parse(capture("fail", anyof("pass", "succeed")), "pas");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", charrange("a", "z")), "p");
+            Capture* res = CBoil.parse(capture("pass", charrange("a", "z")), "p");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", charrange("g", "z")), "f");
+            Capture* res = CBoil.parse(capture("fail", charrange("g", "z")), "f");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", END), "");
+            Capture* res = CBoil.parse(capture("pass", END), "");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", END), "f");
+            Capture* res = CBoil.parse(capture("fail", END), "f");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", firstof("fail", "pass", "succeed")), "pass");
+            Capture* res = CBoil.parse(capture("pass", firstof("fail", "pass", "succeed")), "pass");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", firstof("pass", "succeed")), "fail");
+            Capture* res = CBoil.parse(capture("fail", firstof("pass", "succeed")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", ignorecase("pAss")), "pass");
+            Capture* res = CBoil.parse(capture("pass", ignorecase("pAss")), "pass");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("pass", ignorecase("pass")), "pAsS");
+            Capture* res = CBoil.parse(capture("pass", ignorecase("pass")), "pAsS");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", ignorecase("pass")), "fail");
+            Capture* res = CBoil.parse(capture("fail", ignorecase("pass")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", noneof("f", "l", "y")), "pass");
+            Capture* res = CBoil.parse(capture("pass", noneof("f", "l", "y")), "pass");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", noneof("f", "l", "y")), "fail");
+            Capture* res = CBoil.parse(capture("fail", noneof("f", "l", "y")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", oneormore("pass")), "pass");
+            Capture* res = CBoil.parse(capture("pass", oneormore("pass")), "pass");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("pass", oneormore("pass")), "passpass");
+            Capture* res = CBoil.parse(capture("pass", oneormore("pass")), "passpass");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("pass", oneormore("pass")), "passpassfail");
+            Capture* res = CBoil.parse(capture("pass", oneormore("pass")), "passpassfail");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", oneormore("pass")), "failfail");
+            Capture* res = CBoil.parse(capture("fail", oneormore("pass")), "failfail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", sequence("p", "a", "s", "s")), "pass");
+            Capture* res = CBoil.parse(capture("pass", sequence("p", "a", "s", "s")), "pass");
             ASSERT(res, "Expected string to pass\n");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", sequence("f", "a", "i", "s")), "fail");
+            Capture* res = CBoil.parse(capture("fail", sequence("f", "a", "i", "s")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", test("pass")), "pass");
+            Capture* res = CBoil.parse(capture("pass", test("pass")), "pass");
             ASSERT(res, "Expected string to pass\n");
             ASSERT(!res->firstCap, "Expected empty match");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", test("pass")), "fail");
+            Capture* res = CBoil.parse(capture("fail", test("pass")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = parse(capture("pass", testnot("fail")), "pass");
+            Capture* res = CBoil.parse(capture("pass", testnot("fail")), "pass");
             ASSERT(res, "Expected string to pass\n");
             ASSERT(!res->firstCap, "Expected empty match");
-            clear(res);
+            CBoil.clear(res);
         ),
         TEST(
-            Capture* res = parse(capture("fail", testnot("fail")), "fail");
+            Capture* res = CBoil.parse(capture("fail", testnot("fail")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         CALCULATE("3+1", 4),

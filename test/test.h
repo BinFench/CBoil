@@ -21,13 +21,13 @@ RULES(
 int calculate_expression(Capture* expr);
 
 int calculate_factor(Capture* factor) {
-    if (get(factor, "number"))
-        return atoi(get(factor, "number")->captures->firstCap->str);
-    return calculate_expression(get(factor, "expression")->captures);
+    if (CBoil.get(factor, "number"))
+        return atoi(CBoil.get(factor, "number")->captures->firstCap->str);
+    return calculate_expression(CBoil.get(factor, "expression")->captures);
 }
 
 int calculate_term(Capture* term) {
-    CaptureKVList* factors = get(term, "factor");
+    CaptureKVList* factors = CBoil.get(term, "factor");
     int result = 0;
     if (factors->matches > 0) {
         result = calculate_factor(factors->captures);
@@ -45,7 +45,7 @@ int calculate_term(Capture* term) {
 }
 
 int calculate_expression(Capture* expr) {
-    CaptureKVList* terms = get(expr, "term");
+    CaptureKVList* terms = CBoil.get(expr, "term");
     int result = 0;
     if (terms->matches > 0) {
         result = calculate_term(terms->captures);
@@ -67,7 +67,7 @@ int calculate(char* equation) {
     int result = 0;
     if (res) {
         result = calculate_expression(res);
-        clear(res);
+        CBoil.clear(res);
     }
     return result;
 }

@@ -480,3 +480,5 @@ void _clear(Capture* capture, bool isRoot) {
 void clear(Capture* capture) {
     _clear(capture, true);
 }
+
+const CBoilLib CBoil = {parse, get, clear};

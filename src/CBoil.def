@@ -47,6 +47,6 @@
                                 RULENAMES(arg, args) \
                                 RULEARR(arg, args)
 
-#define PARSE(rule, str)        parse(rules[rule+1], str)
+#define PARSE(rule, str)        CBoil.parse(rules[rule+1], str)
 
 #endif
