@@ -171,7 +171,7 @@ Capture* insert(Capture* parent, Capture child) {
         else for (int i = parent->capacity / 2; i < parent->capacity; i++)
             parent->subcaptures[i] = (CaptureKVList){NULL, 0, NULL};
         parent->numKVs++;
-  } else if (match) {
+    } else if (match) {
         match->matches++;
         match->captures = realloc(match->captures, match->matches*sizeof(Capture));
         match->captures[match->matches - 1] = child;
@@ -231,10 +231,10 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
                 if (rule->child[offset] == '\0') {
                     cap = _parse((Rule*)&rule->child[offset], src, NULL, match, &offset, curr);
                     if (*match) break;
-              } else if (compString(src, NULL, &rule->child[offset], &offset)) {
-                *match = true;
-                break;
-              } else *match = false;
+                } else if (compString(src, NULL, &rule->child[offset], &offset)) {
+                    *match = true;
+                    break;
+                } else *match = false;
                 idx++;
             }
 
@@ -275,7 +275,7 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
             if (a > b) {
                 min = b;
                 max = a;
-          } else {
+            } else {
                 min = a;
                 max = b;
             }
@@ -300,10 +300,10 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
                 if (rule->child[offset] == '\0') {
                     cap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
                     if (*match) break;
-              } else if (compString(src, capture, &rule->child[offset], &offset)) {
-                *match = true;
-                break;
-              } else *match = false;
+                } else if (compString(src, capture, &rule->child[offset], &offset)) {
+                    *match = true;
+                    break;
+                } else *match = false;
                 idx++;
             }
 
@@ -321,7 +321,7 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
                     else b = rule->child[i] + 32;
                     
                     if (a != b) *match = false;
-              } else if ((*src)[i] != rule->child[i]) *match = false;
+                } else if ((*src)[i] != rule->child[i]) *match = false;
                 
                 if (!*match) break;
             }
@@ -375,7 +375,7 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
             if (rule->child[offset] == '\0') {
                 cap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
                 if (match && !cap) cap = capture;
-          } else compString(src, NULL, &rule->child[offset], &offset);
+            } else compString(src, NULL, &rule->child[offset], &offset);
             
             *match = true;
             *off += offset + HEADER_SIZE;
@@ -400,7 +400,7 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
                     seqCap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
                     if (seqCap) cap = seqCap;
                     if (!*match) break;
-              } else if (!compString(src, capture, &rule->child[offset], &offset)) {
+                } else if (!compString(src, capture, &rule->child[offset], &offset)) {
                     *match = false;
                     break;
                 }
