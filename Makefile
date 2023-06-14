@@ -1,5 +1,13 @@
 default: install
 
+static: clean
+	@cd gen && python3 gen.py
+	@sudo cp -R CBoildef /usr/include/
+	@sudo ldconfig
+	@cd src && make static --no-print-directory
+	@cp src/libCBoil.o libCBoil.o
+	@cd src && make clean --no-print-directory
+
 install: clean
 	@cd gen && python3 gen.py
 	@sudo cp -R CBoildef /usr/include/
@@ -21,3 +29,5 @@ make test-mem: install-quiet
 
 clean:
 	@rm -rf -f CBoildef
+	@rm -f libCBoil.o
+	@cd src && make clean --no-print-directory

@@ -9,8 +9,10 @@ LIB=/usr/lib
 
 default: install
 
-install: $(OBJS)
+static: $(OBJS)
 	@ld -r -o libCBoil.o $(OBJS)
+
+install: static
 	@$(CC) $(SHARED_FLAGS) $(SHARED) libCBoil.o
 	@sudo cp $(SHARED) $(LIB)
 	@sudo cp CBoil.h $(INC)
@@ -31,7 +33,12 @@ uninstall:
 	@echo "Shared library uninstalled."
 
 %.o: %.c
-	$(CC) -c -o $@ $< $(CFLAGS) $(DEBUG_FLAGS)
+	@$(CC) -c -o $@ $< $(CFLAGS) $(DEBUG_FLAGS)
 
 CBoil/printutils.o: CBoil/printutils.c
-	$(CC) -c -o $@ $< -Wno-return-local-addr $(CFLAGS) $(DEBUG_FLAGS)
+	@$(CC) -c -o $@ $< -Wno-return-local-addr $(CFLAGS) $(DEBUG_FLAGS)
+
+clean:
+	@rm -f CBoil.o
+	@rm -f libCBoil.o
+	@rm -f CBoil/printutils.o

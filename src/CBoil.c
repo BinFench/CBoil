@@ -1,5 +1,7 @@
 #include <stdbool.h>
 
+#include <stdio.h>
+
 #include "CBoil.h"
 #include "strutil.h"
 
@@ -170,7 +172,6 @@ Capture* insert(Capture* parent, Capture child) {
             parent->subcaptures[i] = (CaptureKVList){NULL, 0, NULL};
         else for (int i = parent->capacity / 2; i < parent->capacity; i++)
             parent->subcaptures[i] = (CaptureKVList){NULL, 0, NULL};
-        parent->numKVs++;
     } else if (match) {
         match->matches++;
         match->captures = realloc(match->captures, match->matches*sizeof(Capture));
@@ -188,6 +189,7 @@ Capture* insert(Capture* parent, Capture child) {
 
     parent->subcaptures[index] = (CaptureKVList){child.name, 1, malloc(sizeof(Capture))};
     parent->subcaptures[index].captures[0] = child;
+    parent->numKVs++;
     return parent->subcaptures[index].captures;
 }
 
@@ -204,6 +206,7 @@ void redir(Capture* old, Capture* new) {
 
 Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr) {
     // Walk Rule tree and parse by current Rule
+    printf("Parsing\n");
     Capture* cap = capture;
     Capture* seqCap;
     Capture newCap;

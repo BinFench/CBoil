@@ -1,3 +1,4 @@
 .vscode
 CBoildef/
 */__pycache__
+*.o
