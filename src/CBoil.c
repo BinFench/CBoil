@@ -1,7 +1,5 @@
 #include <stdbool.h>
 
-#include <stdio.h>
-
 #include "CBoil.h"
 #include "strutil.h"
 
@@ -206,7 +204,6 @@ void redir(Capture* old, Capture* new) {
 
 Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr) {
     // Walk Rule tree and parse by current Rule
-    printf("Parsing\n");
     Capture* cap = capture;
     Capture* seqCap;
     Capture newCap;
