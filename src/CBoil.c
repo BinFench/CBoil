@@ -40,7 +40,7 @@ typedef struct Rule {
 const uint8_t HEADER_SIZE = sizeof(Header);
 const uint8_t RULE_SIZE = sizeof(Rule);
 
-void progress(char** src, Capture* capture, int amount) {
+static void progress(char** src, Capture* capture, int amount) {
     // Encapsulate substring in token within capture, repoint src by amount
     if (capture && !capture->lastCap) {
         capture->lastCap = malloc(sizeof(Token));
@@ -54,7 +54,7 @@ void progress(char** src, Capture* capture, int amount) {
     *src += amount;
 }
 
-bool compString(char** src, Capture* capture, const char* string, uint16_t* offset) {
+static bool compString(char** src, Capture* capture, const char* string, uint16_t* offset) {
     // Compare strings and progress if match
     *offset += strlen(string) + 1;
     for (int i = 0; i < strlen(string); i++) {
@@ -64,9 +64,9 @@ bool compString(char** src, Capture* capture, const char* string, uint16_t* offs
     return true;
 }
 
-uint16_t traverse(uint8_t idx, Rule* rule, uint16_t* offset);
+static uint16_t traverse(uint8_t idx, Rule* rule, uint16_t* offset);
 
-void _traverse(Rule* rule, uint16_t* offset) {
+static void _traverse(Rule* rule, uint16_t* offset) {
     // Walks through Rule tree to determine length of top Rule
     switch(rule->type) {
         case ALL:
@@ -114,7 +114,7 @@ void _traverse(Rule* rule, uint16_t* offset) {
     }
 }
 
-uint16_t traverse(uint8_t idx, Rule* rule, uint16_t* offset) {
+static uint16_t traverse(uint8_t idx, Rule* rule, uint16_t* offset) {
     // Updates offset to the end of this rule's last child
     while(idx < rule->numChildren) {
         if (rule->child[*offset] == '\0') _traverse((Rule*)&rule->child[*offset], offset);
@@ -136,7 +136,7 @@ static uint64_t hash_key(const char* key) {
     return hash;
 }
 
-CaptureKVList* get(Capture* capture, const char* name) {
+static CaptureKVList* get(Capture* capture, const char* name) {
     // Given a Capture and name string, perform hash lookup and return matching CaptureKVList
     if (!capture || capture->numKVs == 0)
         return NULL;
@@ -153,7 +153,7 @@ CaptureKVList* get(Capture* capture, const char* name) {
     return NULL;
 }
 
-Capture* insert(Capture* parent, Capture child) {
+static Capture* insert(Capture* parent, Capture child) {
     // Given a parent and child Captures, perform hash insertion
     if (!parent) {
         parent = malloc(sizeof(Capture));
@@ -191,7 +191,7 @@ Capture* insert(Capture* parent, Capture child) {
     return parent->subcaptures[index].captures;
 }
 
-void redir(Capture* old, Capture* new) {
+static void redir(Capture* old, Capture* new) {
     Token* token = old->firstCap;
     for (int i = 0; i < old->numTokens;) {
         if (old == token->capture) {
@@ -202,7 +202,7 @@ void redir(Capture* old, Capture* new) {
     }
 }
 
-Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr) {
+static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr) {
     // Walk Rule tree and parse by current Rule
     Capture* cap = capture;
     Capture* seqCap;
@@ -434,7 +434,7 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
     return cap;
 }
 
-Capture* parse(const char* rule, char* src) {
+static Capture* parse(const char* rule, char* src) {
     // Given Rule and string, attempt to match and return top Capture in Rule tree
     bool match = true;
     uint16_t offset = 0;
@@ -443,7 +443,7 @@ Capture* parse(const char* rule, char* src) {
     return match ? cap : NULL;
 }
 
-void _clear(Capture* capture, bool isRoot) {
+static void _clear(Capture* capture, bool isRoot) {
     // Cleanup function
 
     Token* token = capture->firstCap;
@@ -479,7 +479,7 @@ void _clear(Capture* capture, bool isRoot) {
     if (isRoot) free(capture);
 }
 
-void clear(Capture* capture) {
+static void clear(Capture* capture) {
     _clear(capture, true);
 }
 
