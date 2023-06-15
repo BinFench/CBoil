@@ -253,12 +253,13 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
 
             *off += offset + HEADER_SIZE;
             if (*match) {
-                curr = malloc(sizeof(Token));
-                if (!cap) cap = &newCap;
-                *curr = (Token){0, NULL, cap, NULL, cap->lastCap};
-                if (cap->lastCap) cap->lastCap->next = curr;
-                cap->lastCap = curr;
-                if (cap != capture && cap != &newCap && !capture) free(curr);
+                if (cap == capture || cap == &newCap || !capture) {
+                    curr = malloc(sizeof(Token));
+                    if (!cap) cap = &newCap;
+                    *curr = (Token){0, NULL, cap, NULL, cap->lastCap};
+                    if (cap->lastCap) cap->lastCap->next = curr;
+                    cap->lastCap = curr;
+                }
                 cap = insert(capture, newCap);
                 redir(&newCap, cap);
             } else if (newCap.firstCap) {
