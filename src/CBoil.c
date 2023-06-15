@@ -258,6 +258,7 @@ Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t*
                 *curr = (Token){0, NULL, cap, NULL, cap->lastCap};
                 if (cap->lastCap) cap->lastCap->next = curr;
                 cap->lastCap = curr;
+                if (cap != capture && cap != &newCap && !capture) free(curr);
                 cap = insert(capture, newCap);
                 redir(&newCap, cap);
             } else if (newCap.firstCap) {
