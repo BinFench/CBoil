@@ -1,41 +1,7 @@
 #include <stdbool.h>
 
-#include "CBoil.h"
 #include "strutil.h"
-
-typedef struct Header {
-    const char magic;
-    const uint8_t type;
-    const uint8_t numChildren;
-} Header;
-
-#define INITIAL_CAPACITY 2  // must not be zero
-#define OFFSET 14695981039346656037UL
-#define PRIME 1099511628211UL
-
-typedef enum RTYPE {
-    ALL,
-    ANYOF,
-    CAPTURE,
-    CHARRANGE,
-    EOI,
-    FIRSTOF,
-    IGNORECASE,
-    NONEOF,
-    ONEORMORE,
-    OPTIONAL,
-    RULE_ENUM,
-    SEQUENCE,
-    TEST,
-    TESTNOT
-} RTYPE;
-
-typedef struct Rule {
-    const char magic;
-    const uint8_t type;
-    const uint8_t numChildren;
-    const char child[];
-} Rule;
+#include "CBoil/internals.h"
 
 const uint8_t HEADER_SIZE = sizeof(Header);
 const uint8_t RULE_SIZE = sizeof(Rule);
@@ -387,8 +353,8 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             // Match subrule.  Used for recursion
             // Find named rule
             for (int i = 0; i < CBOIL__size; i++) {
-                if (strcmp(rule->child, names[i]) == 0) {
-                    cap = _parse((Rule*)rules[i+1], src, capture, match, &offset, curr);
+                if (strcmp(rule->child, CBOIL__names[i]) == 0) {
+                    cap = _parse((Rule*)CBOIL__rules[i+1], src, capture, match, &offset, curr);
                     *off += strlen(rule->child) + 2 + HEADER_SIZE;
                     break;
                 }

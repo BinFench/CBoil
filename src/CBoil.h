@@ -32,8 +32,8 @@ typedef struct Capture {
     Token* lastCap;
 } Capture;
 
-extern const char* names[];
-extern const char* rules[];
+extern const char* CBOIL__names[];
+extern const char* CBOIL__rules[];
 extern const int CBOIL__size;
 
 typedef struct CBoilLib {

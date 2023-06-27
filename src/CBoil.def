@@ -2,16 +2,16 @@
 #define CBOIL_MACROS
 
 // Include computer generated macros
-#include "CBoildef/ASCII.def"
+#include <CBoildef/ASCII.def>
 // ASCII_NUMARGS(...) - Count every argument, return an ASCII char
 // ASCII##N           - Return the Nth ASCII char
 // ASCII(type)        - Alias for ASCII##type
-#include "CBoildef/EVERY_SECOND.def"
+#include <CBoildef/EVERY_SECOND.def>
 // EVERY_SECOND(...)  - Returns every other argument
-#include "CBoildef/MAP.def"
+#include <CBoildef/MAP.def>
 // MAP(f, ...)        - Performs f on every argument
 // MAP_LIST(f, ...)   - Performs f on every argument, comma separated
-#include "CBoildef/VARIADIC.def"
+#include <CBoildef/VARIADIC.def>
 // numargs(...) counts arguments
 
 #define NULLSTR                 "\0\0\0\0\0\0\0\0"
@@ -40,13 +40,13 @@
 
 #define RULEINT(...)            __VA_OPT__(const int __VA_ARGS__ = __COUNTER__;)
 #define RULEINTS(arg, args...)  MAP(RULEINT, arg, EVERY_SECOND(args))
-#define RULENAMES(arg, args...) const char* names[] = {#arg MAP_LIST(STRING, EVERY_SECOND(args))""};
-#define RULEARR(args...)        const char* rules[] = {""MAP_LIST(PASTE, EVERY_SECOND(args))};
+#define RULENAMES(arg, args...) const char* CBOIL__names[] = {#arg MAP_LIST(STRING, EVERY_SECOND(args))""};
+#define RULEARR(args...)        const char* CBOIL__rules[] = {""MAP_LIST(PASTE, EVERY_SECOND(args))};
 #define RULES(arg, args...)     RULEINTS(arg, args) \
                                 const int CBOIL__size = __COUNTER__; \
                                 RULENAMES(arg, args) \
                                 RULEARR(arg, args)
 
-#define PARSE(rule, str)        CBoil.parse(rules[rule+1], str)
+#define PARSE(rule, str)        CBoil.parse(CBOIL__rules[rule+1], str)
 
 #endif
