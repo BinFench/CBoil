@@ -346,7 +346,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             } else compString(src, NULL, &rule->child[offset], &offset);
             
             *match = true;
-            *off += offset + HEADER_SIZE;
+            *off += offset + HEADER_SIZE + 1;
             break;
 
         case RULE_ENUM:
