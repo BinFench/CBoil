@@ -16,4 +16,4 @@ test-mem:
 	@rm test
 
 clean:
-	@rm test
+	@rm -f test
