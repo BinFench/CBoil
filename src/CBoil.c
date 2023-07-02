@@ -63,8 +63,8 @@ static void _traverse(Rule* rule, uint16_t* offset) {
         case CAPTURE:
             // Rule has string + subrule
             *offset += strlen(rule->child) + 1 + HEADER_SIZE;
-            if (rule->child[strlen(rule->child)] == '\0') _traverse((Rule*)&rule->child[strlen(rule->child)], offset);
-            else *offset += strlen(&(rule->child[strlen(rule->child)]));
+            if (rule->child[strlen(rule->child)+1] == '\0') {_traverse((Rule*)&rule->child[strlen(rule->child)+1], offset); (*offset)++;}
+            else *offset += strlen(&(rule->child[strlen(rule->child)+1])) + 1;
             break;
 
         case ONEORMORE:
@@ -74,8 +74,8 @@ static void _traverse(Rule* rule, uint16_t* offset) {
         case TESTNOT:
             // Rule has subrule
             *offset += HEADER_SIZE;
-            if (rule->child[0] == '\0') _traverse((Rule*)rule->child, offset);
-            else *offset += strlen(rule->child);
+            if (rule->child[0] == '\0') {_traverse((Rule*)rule->child, offset); (*offset)++;}
+            else *offset += strlen(rule->child) + 1;
             break;
     }
 }
@@ -83,7 +83,7 @@ static void _traverse(Rule* rule, uint16_t* offset) {
 static uint16_t traverse(uint8_t idx, Rule* rule, uint16_t* offset) {
     // Updates offset to the end of this rule's last child
     while(idx < rule->numChildren) {
-        if (rule->child[*offset] == '\0') _traverse((Rule*)&rule->child[*offset], offset);
+        if (rule->child[*offset] == '\0') {_traverse((Rule*)&rule->child[*offset], offset); (*offset)++;}
         else *offset += strlen(&rule->child[*offset]) + 1;
 
         idx++;
@@ -375,7 +375,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
 
                 idx++;
             }
-            *off += traverse(++idx, rule, &offset) + HEADER_SIZE + 3;
+            *off += traverse(++idx, rule, &offset) + HEADER_SIZE + 1;
             break;
 
         case TEST:

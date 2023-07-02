@@ -187,7 +187,12 @@ int main() {
             ASSERT(!res, "Expected string to fail\n");
         ),
         CALCULATE("3+1", 4),
-        CALCULATE("(7*2+6)/10", 2)
+        CALCULATE("(7*2+6)/10", 2),
+        TEST(
+            Capture* res = CBoil.parse(capture("pass", sequence(optional(sequence("+", "/", "-")), charrange("0", "9"))), "0");
+            ASSERT(res, "Expected string to pass\n");
+            CBoil.clear(res);
+        )
     );
     return 0;
 }

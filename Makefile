@@ -31,3 +31,4 @@ clean:
 	@rm -rf -f CBoildef
 	@rm -f libCBoil.o
 	@cd src && make clean --no-print-directory
+	@cd test && make clean --no-print-directory
