@@ -196,11 +196,13 @@ int main() {
         TEST(
             Capture* res = CBoil.parse(capture("pass", sequence(optional(sequence(subrule(kv), subrule(w))), zeroormore(sequence(",", subrule(w), subrule(kv), subrule(w))), ",")), ",");
             ASSERT(res, "Expected string to pass\n");
+            ASSERT(res->numTokens == 1, "Expected single match\n");
             CBoil.clear(res);
         ),
         TEST(
             Capture* res = CBoil.parse(capture("pass", sequence("\"", zeroormore(sequence(testnot("\""), ANY)), "\"")), "\"Hello World!\"");
             ASSERT(res, "Expected string to pass\n");
+            ASSERT(strcmp(res->firstCap->str, "\"Hello World!\"") == 0, "Expected token '\"Hello World!\"', got '%s'\n", res->firstCap->str);
             CBoil.clear(res);
         )
     );

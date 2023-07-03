@@ -356,7 +356,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             if (firstMatch) *match = true;
 
             // Rule size is size of Header + size of subrule
-            *off += offset + HEADER_SIZE;
+            *off += offset + HEADER_SIZE + 1;
             break;
 
         case OPTIONAL:
@@ -366,6 +366,8 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
                 if (match && !cap) cap = capture;
             } else compString(src, NULL, rule->child+offset, &offset);
             
+            if (!*match) *src = currSrc;
+
             *match = true;
             // Rule size is size of Header + size of subrule + 1 for termination
             *off += offset + HEADER_SIZE + 1;
