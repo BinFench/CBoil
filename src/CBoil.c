@@ -174,6 +174,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
     // Walk Rule tree and parse by current Rule
     Capture* cap = capture;
     Capture* seqCap;
+    char* currSrc = *src;
     Capture newCap;
     uint8_t idx = 0;
     uint16_t offset = 0;
@@ -417,6 +418,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             
             // Rule size is size of Header + size of subrule
             *off += offset + HEADER_SIZE;
+            *src = currSrc;
             break;
 
         case TESTNOT:
@@ -429,6 +431,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
 
             // Rule size is size of Header + size of subrule
             *off += offset + HEADER_SIZE;
+            *src = currSrc;
             break;
     }
     return cap;
