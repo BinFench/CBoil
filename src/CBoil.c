@@ -34,6 +34,7 @@ static uint16_t traverse(uint8_t idx, Rule* rule, uint16_t* offset);
 
 static void _traverse(Rule* rule, uint16_t* offset) {
     // Walks through Rule tree to determine length of top Rule
+    uint16_t off = 0;
     switch(rule->type) {
         case ALL:
         case EOI:
@@ -51,8 +52,8 @@ static void _traverse(Rule* rule, uint16_t* offset) {
         case NONEOF:
         case SEQUENCE:
             // Rule has subrules
-            *offset += HEADER_SIZE;
-            traverse(0, rule, offset);
+            traverse(0, rule, &off);
+            *offset += off + HEADER_SIZE;
             break;
 
         case IGNORECASE:
@@ -62,9 +63,9 @@ static void _traverse(Rule* rule, uint16_t* offset) {
 
         case CAPTURE:
             // Rule has string + subrule
-            *offset += strlen(rule->child) + 1 + HEADER_SIZE;
-            if (rule->child[strlen(rule->child)+1] == '\0') {_traverse((Rule*)&rule->child[strlen(rule->child)+1], offset); (*offset)++;}
-            else *offset += strlen(&(rule->child[strlen(rule->child)+1])) + 1;
+            if (rule->child[strlen(rule->child)+1] == '\0') {_traverse((Rule*)(rule->child+strlen(rule->child)+1), &off); off++;}
+            else *offset += strlen((rule->child+strlen(rule->child)+1)) + 1;
+            *offset += off + strlen(rule->child) + 1 + HEADER_SIZE;
             break;
 
         case ONEORMORE:
@@ -73,9 +74,9 @@ static void _traverse(Rule* rule, uint16_t* offset) {
         case TEST:
         case TESTNOT:
             // Rule has subrule
-            *offset += HEADER_SIZE;
-            if (rule->child[0] == '\0') {_traverse((Rule*)rule->child, offset); (*offset)++;}
+            if (rule->child[0] == '\0') {_traverse((Rule*)rule->child, &off); off++;}
             else *offset += strlen(rule->child) + 1;
+            *offset += off + HEADER_SIZE;
             break;
     }
 }
@@ -83,8 +84,9 @@ static void _traverse(Rule* rule, uint16_t* offset) {
 static uint16_t traverse(uint8_t idx, Rule* rule, uint16_t* offset) {
     // Updates offset to the end of this rule's last child
     while(idx < rule->numChildren) {
-        if (rule->child[*offset] == '\0') {_traverse((Rule*)&rule->child[*offset], offset); (*offset)++;}
-        else *offset += strlen(&rule->child[*offset]) + 1;
+        // Traverse rule or add string length + null termination to offset
+        if (rule->child[*offset] == '\0') {_traverse((Rule*)(rule->child+*offset), offset); (*offset)++;}
+        else *offset += strlen(rule->child+*offset) + 1;
 
         idx++;
     }
@@ -112,7 +114,7 @@ static CaptureKVList* get(Capture* capture, const char* name) {
 
     while (capture->subcaptures[index].key) {
         if (strcmp(name, capture->subcaptures[index].key) == 0)
-            return &(capture->subcaptures[index]);
+            return capture->subcaptures + index;
         index++;
         if (index >= capture->capacity) index = 0;
     }
@@ -140,7 +142,7 @@ static Capture* insert(Capture* parent, Capture child) {
         match->matches++;
         match->captures = realloc(match->captures, match->matches*sizeof(Capture));
         match->captures[match->matches - 1] = child;
-        return &(match->captures[match->matches - 1]);
+        return (match->captures + match->matches - 1);
     }
 
     uint64_t hash = hash_key(child.name);
@@ -188,6 +190,8 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             }
             // Matches any char
             progress(src, capture, 1);
+
+            // Rule size is just size of struct, since no children
             *off += sizeof(Rule);
             break;
 
@@ -195,9 +199,10 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             // If any subrule matches, match char
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
-                    cap = _parse((Rule*)&rule->child[offset], src, NULL, match, &offset, curr);
+                    cap = _parse((Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
                     if (*match) break;
-                } else if (compString(src, NULL, &rule->child[offset], &offset)) {
+                    offset++;
+                } else if (compString(src, NULL, rule->child+offset, &offset)) {
                     *match = true;
                     break;
                 } else *match = false;
@@ -205,6 +210,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             }
 
             if (*match) progress(src, capture, 1);
+            // Rule size is size of Header + size of all children rules
             *off += traverse(++idx, rule, &offset) + HEADER_SIZE;
             break;
 
@@ -214,10 +220,10 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             offset += strlen(rule->child) + 1;
 
             if (rule->child[offset] == '\0')
-                cap = _parse((Rule*)&rule->child[offset], src, &newCap, match, &offset, curr);
-            else if (!compString(src, &newCap, &rule->child[offset], &offset)) *match = false;
+                cap = _parse((Rule*)(rule->child+offset), src, &newCap, match, &offset, curr);
+            else if (!compString(src, &newCap, rule->child+offset, &offset)) *match = false;
 
-            *off += offset + HEADER_SIZE;
+            // Upon match, add new Token to AST
             if (*match) {
                 if (cap == capture || cap == &newCap || capture) {
                     curr = malloc(sizeof(Token));
@@ -233,6 +239,10 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
                 if (newCap.firstCap->str) free(newCap.firstCap->str);
                 free(newCap.firstCap);
             }
+
+            // Rule size is size of Header + size of subrule
+            *off += offset + HEADER_SIZE;
+
             break;
 
         case CHARRANGE:
@@ -251,6 +261,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             if (min <= **src && max >= **src) progress(src, capture, 1);
             else *match = false;
 
+            // Size of rule is size of Header + 2 chars
             *off += HEADER_SIZE + 2;
             break;
 
@@ -258,6 +269,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             // Match on null character
             if (**src != '\0') *match = false;
 
+            // Rule size is just size of struct, since no children
             *off += sizeof(Rule);
             break;
 
@@ -266,21 +278,23 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             while (idx < rule->numChildren) {
                 *match = true;
                 if (rule->child[offset] == '\0') {
-                    cap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
+                    cap = _parse((Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                     if (*match) break;
-                } else if (compString(src, capture, &rule->child[offset], &offset)) {
+                    offset++;
+                } else if (compString(src, capture, rule->child+offset, &offset)) {
                     *match = true;
                     break;
                 } else *match = false;
                 idx++;
             }
 
+            // Rule size is size of Header + size of all children rules
             *off += traverse(++idx, rule, &offset) + HEADER_SIZE;
             break;
 
         case IGNORECASE:
             // Match string ignoring case
-            for (int i = 0; i < strlen(&rule->child[offset]); i++) {
+            for (int i = 0; i < strlen(rule->child+offset); i++) {
                 if (isAlpha((*src)[i]) && isAlpha(rule->child[i])) {
                     if (isLower((*src)[i])) a = (*src)[i];
                     else a = (*src)[i] + 32;
@@ -294,17 +308,20 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
                 if (!*match) break;
             }
             
-            if (*match) progress(src, capture, strlen(&rule->child[offset]));
+            if (*match) progress(src, capture, strlen(rule->child+offset));
             
-            *off += strlen(&rule->child[offset]) + HEADER_SIZE;
+            // Rule size is size of Header + length of string + null termination
+            *off += strlen(rule->child+offset) + HEADER_SIZE + 1;
             break;
 
         case NONEOF:
             // If no subrules match, match char
             while (idx < rule->numChildren) {
-                if (rule->child[offset] == '\0')
-                    cap = _parse((Rule*)&rule->child[offset], src, NULL, match, &offset, curr);
-                else if (compString(src, NULL, &rule->child[offset], &offset)) *match = true;
+                if (rule->child[offset] == '\0') {
+                    cap = _parse((Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
+                    if (*match) break;
+                    offset++;
+                } else if (compString(src, NULL, rule->child+offset, &offset)) *match = true;
                 else *match = false;
                 
                 if (*match) break;
@@ -317,6 +334,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
 
             *match = !*match;
 
+            // Rule size is size of Header + size of all children rules
             *off += traverse(++idx, rule, &offset) + HEADER_SIZE;
             break;
 
@@ -326,8 +344,8 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
                 offset = 0;
 
                 if (rule->child[offset] == '\0')
-                    cap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
-                else if (!compString(src, capture, &rule->child[offset], &offset)) *match = false;
+                    cap = _parse((Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                else if (!compString(src, capture, rule->child+offset, &offset)) *match = false;
 
                 if (*match) firstMatch = true;
                 if (!*match) break;
@@ -335,18 +353,20 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
 
             if (firstMatch) *match = true;
 
+            // Rule size is size of Header + size of subrule
             *off += offset + HEADER_SIZE;
             break;
 
         case OPTIONAL:
             // Always match, but only progress if subrule matches
             if (rule->child[offset] == '\0') {
-                cap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
+                cap = _parse((Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                 if (match && !cap) cap = capture;
-            } else compString(src, NULL, &rule->child[offset], &offset);
+            } else compString(src, NULL, rule->child+offset, &offset);
             
             *match = true;
-            *off += offset + HEADER_SIZE + 1;
+            // Rule size is size of Header + size of subrule
+            *off += offset + HEADER_SIZE;
             break;
 
         case RULE_ENUM:
@@ -355,7 +375,8 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             for (int i = 0; i < CBOIL__size; i++) {
                 if (strcmp(rule->child, CBOIL__names[i]) == 0) {
                     cap = _parse((Rule*)CBOIL__rules[i+1], src, capture, match, &offset, curr);
-                    *off += strlen(rule->child) + 2 + HEADER_SIZE;
+                    //Rule size is size of header + string length + null termination
+                    *off += strlen(rule->child) + 1 + HEADER_SIZE;
                     break;
                 }
             }
@@ -365,35 +386,41 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             // Match all subrules
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
-                    seqCap = _parse((Rule*)&rule->child[offset], src, capture, match, &offset, curr);
+                    seqCap = _parse((Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                     if (seqCap) cap = seqCap;
                     if (!*match) break;
-                } else if (!compString(src, capture, &rule->child[offset], &offset)) {
+                    offset++;
+                } else if (!compString(src, capture, rule->child+offset, &offset)) {
                     *match = false;
                     break;
                 }
 
                 idx++;
             }
-            *off += traverse(++idx, rule, &offset) + HEADER_SIZE + 1;
+
+            // Rule size is size of Header + size of subrules
+            *off += traverse(++idx, rule, &offset) + HEADER_SIZE;
             break;
 
         case TEST:
             // Match subrule, never progress
             if (rule->child[offset] == '\0')
-                cap = _parse((Rule*)&rule->child[offset], src, NULL, match, &offset, curr);
-            else if (!compString(src, NULL, &rule->child[offset], &offset)) *match = false;
+                cap = _parse((Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
+            else if (!compString(src, NULL, rule->child+offset, &offset)) *match = false;
             
+            // Rule size is size of Header + size of subrule
             *off += offset + HEADER_SIZE;
             break;
 
         case TESTNOT:
             // Match is subrule does not match, never progress
             if (rule->child[offset] == '\0')
-                cap = _parse((Rule*)&rule->child[offset], src, NULL, match, &offset, curr);
-            else if (!compString(src, NULL, &rule->child[offset], &offset)) *match = false;
+                cap = _parse((Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
+            else if (!compString(src, NULL, rule->child+offset, &offset)) *match = false;
 
             *match = !*match;
+
+            // Rule size is size of Header + size of subrule
             *off += offset + HEADER_SIZE;
             break;
     }
@@ -431,10 +458,10 @@ static void _clear(Capture* capture, bool isRoot) {
 
     if (capture->numKVs != 0) {
         for (int i = 0; i < capture->capacity; i++) {
-            CaptureKVList* captures = &capture->subcaptures[i];
+            CaptureKVList* captures = capture->subcaptures+i;
             if (captures && captures->matches > 0) {
                 for (int j = 0; j < captures->matches; j++) {
-                    _clear(&captures->captures[j], false);
+                    _clear(captures->captures+j, false);
                 }
                 free(captures->captures);
             }
