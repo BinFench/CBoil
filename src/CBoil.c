@@ -243,7 +243,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             }
 
             // Rule size is size of Header + size of subrule
-            *off += offset + HEADER_SIZE;
+            *off += offset + HEADER_SIZE + 1;
 
             break;
 
