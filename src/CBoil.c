@@ -4,7 +4,7 @@
 #include "CBoil/internals.h"
 
 const uint8_t HEADER_SIZE = sizeof(Header);
-const uint8_t RULE_SIZE = sizeof(Rule);
+const uint8_t RULE_SIZE = sizeof(Rule) + 8;
 
 static void progress(char** src, Capture* capture, int amount) {
     // Encapsulate substring in token within capture, repoint src by amount
@@ -178,6 +178,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
     uint8_t idx = 0;
     uint16_t offset = 0;
     bool firstMatch = false;
+    bool found = false;
     char a;
     char b;
     char min;
@@ -192,7 +193,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             progress(src, capture, 1);
 
             // Rule size is just size of struct, since no children
-            *off += sizeof(Rule);
+            *off += RULE_SIZE;
             break;
 
         case ANYOF:
@@ -200,8 +201,8 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
                     cap = _parse((Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
-                    if (*match) break;
                     offset++;
+                    if (*match) break;
                 } else if (compString(src, NULL, rule->child+offset, &offset)) {
                     *match = true;
                     break;
@@ -270,7 +271,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             if (**src != '\0') *match = false;
 
             // Rule size is just size of struct, since no children
-            *off += sizeof(Rule);
+            *off += RULE_SIZE;
             break;
 
         case FIRSTOF:
@@ -279,8 +280,8 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
                 *match = true;
                 if (rule->child[offset] == '\0') {
                     cap = _parse((Rule*)(rule->child+offset), src, capture, match, &offset, curr);
-                    if (*match) break;
                     offset++;
+                    if (*match) break;
                 } else if (compString(src, capture, rule->child+offset, &offset)) {
                     *match = true;
                     break;
@@ -319,8 +320,8 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
                     cap = _parse((Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
-                    if (*match) break;
                     offset++;
+                    if (*match) break;
                 } else if (compString(src, NULL, rule->child+offset, &offset)) *match = true;
                 else *match = false;
                 
@@ -365,8 +366,8 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             } else compString(src, NULL, rule->child+offset, &offset);
             
             *match = true;
-            // Rule size is size of Header + size of subrule
-            *off += offset + HEADER_SIZE;
+            // Rule size is size of Header + size of subrule + 1 for termination
+            *off += offset + HEADER_SIZE + 1;
             break;
 
         case RULE_ENUM:
@@ -374,11 +375,17 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             // Find named rule
             for (int i = 0; i < CBOIL__size; i++) {
                 if (strcmp(rule->child, CBOIL__names[i]) == 0) {
+                    found = true;
                     cap = _parse((Rule*)CBOIL__rules[i+1], src, capture, match, &offset, curr);
-                    //Rule size is size of header + string length + null termination
+                    // Rule size is size of header + string length + null termination
                     *off += strlen(rule->child) + 1 + HEADER_SIZE;
                     break;
                 }
+            }
+            if (!found) {
+                *match = false;
+                // Rule size is size of header + string length + null termination
+                *off += strlen(rule->child) + 1 + HEADER_SIZE;
             }
             break;
 
@@ -388,8 +395,8 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
                 if (rule->child[offset] == '\0') {
                     seqCap = _parse((Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                     if (seqCap) cap = seqCap;
-                    if (!*match) break;
                     offset++;
+                    if (!*match) break;
                 } else if (!compString(src, capture, rule->child+offset, &offset)) {
                     *match = false;
                     break;
