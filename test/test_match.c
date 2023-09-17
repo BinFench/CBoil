@@ -204,6 +204,11 @@ int main() {
             ASSERT(res, "Expected string to pass\n");
             ASSERT(strcmp(res->firstCap->str, "\"Hello World!\"") == 0, "Expected token '\"Hello World!\"', got '%s'\n", res->firstCap->str);
             CBoil.clear(res);
+        ),
+        TEST(
+            Capture* res = CBoil.parse(capture("pass", sequence("{", capture("body", sequence(optional(sequence(optional("\t"), " ")), zeroormore(sequence(",", subrule(w), subrule(kv), subrule(w))))), "}")), "{ }");
+            ASSERT(res, "Expected string to pass\n");
+            CBoil.clear(res);
         )
     );
     return 0;
