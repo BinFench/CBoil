@@ -264,7 +264,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             else *match = false;
 
             // Size of rule is size of Header + 2 chars
-            *off += HEADER_SIZE + 2;
+            *off += HEADER_SIZE + 3;
             break;
 
         case EOI:
@@ -370,7 +370,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
 
             *match = true;
             // Rule size is size of Header + size of subrule + 1 for termination
-            *off += offset + HEADER_SIZE + 1;
+            *off += offset + HEADER_SIZE + ((rule->child[0] == '\0') ? 1 : 0);
             break;
 
         case RULE_ENUM:

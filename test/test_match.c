@@ -206,7 +206,7 @@ int main() {
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", sequence("{", capture("body", sequence(optional(sequence(optional("\t"), " ")), zeroormore(sequence(",", subrule(w), subrule(kv), subrule(w))))), "}")), "{ }");
+            Capture* res = CBoil.parse(capture("pass", sequence(oneormore(charrange("0","9")), optional("."), zeroormore(charrange("0","9")))), "1");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         )
