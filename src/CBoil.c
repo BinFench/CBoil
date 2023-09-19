@@ -364,7 +364,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             if (rule->child[offset] == '\0') {
                 cap = _parse((Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                 if (match && !cap) cap = capture;
-            } else compString(src, NULL, rule->child+offset, &offset);
+            } else compString(src, capture, rule->child+offset, &offset);
             
             if (!*match) *src = currSrc;
 
