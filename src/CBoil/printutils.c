@@ -643,15 +643,11 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
     return newPos;
 }
 
-void dumpRule(int r) {
+void dumpRule(const char* name, const char* rule) {
     // Print a Rule as JSON string
-    if (r < 0 || r >= CBOIL__size) return;
-
-    const char* name = CBOIL__names[r];
-    Rule* rule = (Rule*) CBOIL__rules[r+1];
     int offset = 0;
     int nameLen = strlen(name);
-    const int size = getRuleSize(rule, 0, true, &offset) + nameLen + 3;
+    const int size = getRuleSize((Rule*)rule, 0, true, &offset) + nameLen + 3;
     char dump[size + 1];
     for (int i = 0; i < size+1; i++)
         dump[i] = '\0';
@@ -659,7 +655,7 @@ void dumpRule(int r) {
     dump[nameLen] = ':';
     dump[nameLen+1] = ' ';
     int off = 0;
-    writeRule(dump, rule, &off, 0, nameLen + 2);
+    writeRule(dump, (Rule*)rule, &off, 0, nameLen + 2);
     dump[size] = '\0';
     printf("%s\n", dump);
 }

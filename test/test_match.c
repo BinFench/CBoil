@@ -9,7 +9,7 @@
 int main() {
     TESTS(
         TEST(
-            Capture* res = PARSE(inputLine, "1");
+            Capture* res = CBoil.parse(&calculator, "inputLine", "1");
             ASSERT(res, "Failed to match\n");
             ASSERT(strcmp(res->name, "expression") == 0, "Expected capture named 'expression', got: %s\n", res->name);
             CaptureKVList* terms = CBoil.get(res, "term");
@@ -25,7 +25,7 @@ int main() {
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = PARSE(inputLine, "1+2");
+            Capture* res = CBoil.parse(&calculator, "inputLine", "1+2");
             ASSERT(res, "Failed to match\n");
             ASSERT(strcmp(res->name, "expression") == 0, "Expected capture named 'expression', got: %s\n", res->name);
             CaptureKVList* terms = CBoil.get(res, "term");
@@ -52,161 +52,161 @@ int main() {
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", "pass"), "pass");
+            Capture* res = CBoil.parseRule(capture("pass", "pass"), "pass");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", "pass"), "fail");
+            Capture* res = CBoil.parseRule(capture("pass", "pass"), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", ANY), "pass");
+            Capture* res = CBoil.parseRule(capture("pass", ANY), "pass");
             ASSERT(res, "Expected string to pass\n");
             ASSERT(res->firstCap->size == 1 && res->firstCap->str[0] == 'p', "Expected to match 'p'\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", ANY), "");
+            Capture* res = CBoil.parseRule(capture("fail", ANY), "");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", anyof("pass")), "pass");
+            Capture* res = CBoil.parseRule(capture("pass", anyof("pass")), "pass");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", anyof("pass", "succeed")), "fail");
+            Capture* res = CBoil.parseRule(capture("fail", anyof("pass", "succeed")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", anyof("pass", "succeed")), "succeed");
+            Capture* res = CBoil.parseRule(capture("pass", anyof("pass", "succeed")), "succeed");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", anyof("pass", "succeed")), "pas");
+            Capture* res = CBoil.parseRule(capture("fail", anyof("pass", "succeed")), "pas");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", charrange("a", "z")), "p");
+            Capture* res = CBoil.parseRule(capture("pass", charrange("a", "z")), "p");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", charrange("g", "z")), "f");
+            Capture* res = CBoil.parseRule(capture("fail", charrange("g", "z")), "f");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", END), "");
+            Capture* res = CBoil.parseRule(capture("pass", END), "");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", END), "f");
+            Capture* res = CBoil.parseRule(capture("fail", END), "f");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", firstof("fail", "pass", "succeed")), "pass");
+            Capture* res = CBoil.parseRule(capture("pass", firstof("fail", "pass", "succeed")), "pass");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", firstof("pass", "succeed")), "fail");
+            Capture* res = CBoil.parseRule(capture("fail", firstof("pass", "succeed")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", ignorecase("pAss")), "pass");
+            Capture* res = CBoil.parseRule(capture("pass", ignorecase("pAss")), "pass");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", ignorecase("pass")), "pAsS");
+            Capture* res = CBoil.parseRule(capture("pass", ignorecase("pass")), "pAsS");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", ignorecase("pass")), "fail");
+            Capture* res = CBoil.parseRule(capture("fail", ignorecase("pass")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", noneof("f", "l", "y")), "pass");
+            Capture* res = CBoil.parseRule(capture("pass", noneof("f", "l", "y")), "pass");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", noneof("f", "l", "y")), "fail");
+            Capture* res = CBoil.parseRule(capture("fail", noneof("f", "l", "y")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", oneormore("pass")), "pass");
+            Capture* res = CBoil.parseRule(capture("pass", oneormore("pass")), "pass");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", oneormore("pass")), "passpass");
+            Capture* res = CBoil.parseRule(capture("pass", oneormore("pass")), "passpass");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", oneormore("pass")), "passpassfail");
+            Capture* res = CBoil.parseRule(capture("pass", oneormore("pass")), "passpassfail");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", oneormore("pass")), "failfail");
+            Capture* res = CBoil.parseRule(capture("fail", oneormore("pass")), "failfail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", sequence("p", "a", "s", "s")), "pass");
+            Capture* res = CBoil.parseRule(capture("pass", sequence("p", "a", "s", "s")), "pass");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", sequence("f", "a", "i", "s")), "fail");
+            Capture* res = CBoil.parseRule(capture("fail", sequence("f", "a", "i", "s")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", test("pass")), "pass");
+            Capture* res = CBoil.parseRule(capture("pass", test("pass")), "pass");
             ASSERT(res, "Expected string to pass\n");
             ASSERT(!res->firstCap, "Expected empty match");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", test("pass")), "fail");
+            Capture* res = CBoil.parseRule(capture("fail", test("pass")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", testnot("fail")), "pass");
+            Capture* res = CBoil.parseRule(capture("pass", testnot("fail")), "pass");
             ASSERT(res, "Expected string to pass\n");
             ASSERT(!res->firstCap, "Expected empty match");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("fail", testnot("fail")), "fail");
+            Capture* res = CBoil.parseRule(capture("fail", testnot("fail")), "fail");
             ASSERT(!res, "Expected string to fail\n");
         ),
         CALCULATE("3+1", 4),
         CALCULATE("(7*2+6)/10", 2),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", sequence(optional(sequence("+", "/", "-")), charrange("0", "9"))), "0");
+            Capture* res = CBoil.parseRule(capture("pass", sequence(optional(sequence("+", "/", "-")), charrange("0", "9"))), "0");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", sequence(optional(sequence(subrule(kv), subrule(w))), zeroormore(sequence(",", subrule(w), subrule(kv), subrule(w))), ",")), ",");
+            Capture* res = CBoil.parseRule(capture("pass", sequence(optional(sequence(subrule(kv), subrule(w))), zeroormore(sequence(",", subrule(w), subrule(kv), subrule(w))), ",")), ",");
             ASSERT(res, "Expected string to pass\n");
             ASSERT(res->numTokens == 1, "Expected single match\n");
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", sequence("\"", zeroormore(sequence(testnot("\""), ANY)), "\"")), "\"Hello World!\"");
+            Capture* res = CBoil.parseRule(capture("pass", sequence("\"", zeroormore(sequence(testnot("\""), ANY)), "\"")), "\"Hello World!\"");
             ASSERT(res, "Expected string to pass\n");
             ASSERT(strcmp(res->firstCap->str, "\"Hello World!\"") == 0, "Expected token '\"Hello World!\"', got '%s'\n", res->firstCap->str);
             CBoil.clear(res);
         ),
         TEST(
-            Capture* res = CBoil.parse(capture("pass", sequence(oneormore(charrange("0","9")), optional("."), zeroormore(charrange("0","9")))), "1");
+            Capture* res = CBoil.parseRule(capture("pass", sequence(oneormore(charrange("0","9")), optional("."), zeroormore(charrange("0","9")))), "1");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
         )

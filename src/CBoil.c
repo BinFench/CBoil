@@ -1,7 +1,7 @@
 #include <stdbool.h>
 
 #include "strutil.h"
-#include "CBoil/internals.h"
+#include "CBoil.h"
 
 const uint8_t HEADER_SIZE = sizeof(Header);
 const uint8_t RULE_SIZE = sizeof(Rule) + 8;
@@ -170,7 +170,7 @@ static void redir(Capture* old, Capture* new) {
     }
 }
 
-static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr) {
+static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr) {
     // Walk Rule tree and parse by current Rule
     Capture* cap = capture;
     Capture* seqCap;
@@ -201,7 +201,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             // If any subrule matches, match char
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
-                    cap = _parse((Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
+                    cap = _parse(ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
                     offset++;
                     if (*match) break;
                 } else if (compString(src, NULL, rule->child+offset, &offset)) {
@@ -222,7 +222,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             offset += strlen(rule->child) + 1;
 
             if (rule->child[offset] == '\0')
-                cap = _parse((Rule*)(rule->child+offset), src, &newCap, match, &offset, curr);
+                cap = _parse(ruleSet, (Rule*)(rule->child+offset), src, &newCap, match, &offset, curr);
             else if (!compString(src, &newCap, rule->child+offset, &offset)) *match = false;
 
             // Upon match, add new Token to AST
@@ -280,7 +280,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             while (idx < rule->numChildren) {
                 *match = true;
                 if (rule->child[offset] == '\0') {
-                    cap = _parse((Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                    cap = _parse(ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                     offset++;
                     if (*match) break;
                 } else if (compString(src, capture, rule->child+offset, &offset)) {
@@ -320,7 +320,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             // If no subrules match, match char
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
-                    cap = _parse((Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
+                    cap = _parse(ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
                     offset++;
                     if (*match) break;
                 } else if (compString(src, NULL, rule->child+offset, &offset)) *match = true;
@@ -346,7 +346,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
                 offset = 0;
 
                 if (rule->child[offset] == '\0')
-                    cap = _parse((Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                    cap = _parse(ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                 else if (!compString(src, capture, rule->child+offset, &offset)) *match = false;
 
                 if (*match) firstMatch = true;
@@ -362,7 +362,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
         case OPTIONAL:
             // Always match, but only progress if subrule matches
             if (rule->child[offset] == '\0') {
-                cap = _parse((Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                cap = _parse(ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                 if (match && !cap) cap = capture;
             } else compString(src, capture, rule->child+offset, &offset);
             
@@ -376,13 +376,15 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
         case RULE_ENUM:
             // Match subrule.  Used for recursion
             // Find named rule
-            for (int i = 0; i < CBOIL__size; i++) {
-                if (strcmp(rule->child, CBOIL__names[i]) == 0) {
-                    found = true;
-                    cap = _parse((Rule*)CBOIL__rules[i+1], src, capture, match, &offset, curr);
-                    // Rule size is size of header + string length + null termination
-                    *off += strlen(rule->child) + 1 + HEADER_SIZE;
-                    break;
+            if (ruleSet) {
+                for (int i = 0; i < ruleSet->size; i++) {
+                    if (strcmp(rule->child, ruleSet->nrps[i].name) == 0) {
+                        found = true;
+                        cap = _parse(ruleSet, (Rule*)ruleSet->nrps[i].rule, src, capture, match, &offset, curr);
+                        // Rule size is size of header + string length + null termination
+                        *off += strlen(rule->child) + 1 + HEADER_SIZE;
+                        break;
+                    }
                 }
             }
             if (!found) {
@@ -396,7 +398,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
             // Match all subrules
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
-                    seqCap = _parse((Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                    seqCap = _parse(ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                     if (seqCap) cap = seqCap;
                     offset++;
                     if (!*match) break;
@@ -415,7 +417,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
         case TEST:
             // Match subrule, never progress
             if (rule->child[offset] == '\0')
-                cap = _parse((Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
+                cap = _parse(ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
             else if (!compString(src, NULL, rule->child+offset, &offset)) *match = false;
             
             // Rule size is size of Header + size of subrule
@@ -426,7 +428,7 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
         case TESTNOT:
             // Match is subrule does not match, never progress
             if (rule->child[offset] == '\0')
-                cap = _parse((Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
+                cap = _parse(ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
             else if (!compString(src, NULL, rule->child+offset, &offset)) *match = false;
 
             *match = !*match;
@@ -439,11 +441,27 @@ static Capture* _parse(Rule* rule, char** src, Capture* capture, bool* match, ui
     return cap;
 }
 
-static Capture* parse(const char* rule, char* src) {
+static Capture* parse(RuleSet* ruleSet, const char* ruleName, char* src) {
+    // Given Rule and string, attempt to match and return top Capture in Rule tree
+    if (ruleSet == NULL) return NULL;
+    bool match = true;
+    Rule* rule = NULL;
+    for (int i = 0; i < ruleSet->size; i++) {
+        if (strcmp(ruleName, ruleSet->nrps[i].name) == 0) {
+            rule = (Rule*)ruleSet->nrps[i].rule;
+        }
+    }
+    uint16_t offset = 0;
+    Capture* cap = _parse(ruleSet, rule, &src, NULL, &match, &offset, NULL);
+    
+    return match ? cap : NULL;
+}
+
+static Capture* parseRule(const char* rule, char* src) {
     // Given Rule and string, attempt to match and return top Capture in Rule tree
     bool match = true;
     uint16_t offset = 0;
-    Capture* cap = _parse((Rule*)rule, &src, NULL, &match, &offset, NULL);
+    Capture* cap = _parse(NULL, (Rule*)rule, &src, NULL, &match, &offset, NULL);
     
     return match ? cap : NULL;
 }
@@ -488,4 +506,4 @@ static void clear(Capture* capture) {
     _clear(capture, true);
 }
 
-const CBoilLib CBoil = {parse, get, clear};
+const CBoilLib CBoil = {parse, parseRule, get, clear};

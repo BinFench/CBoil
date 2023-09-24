@@ -38,15 +38,7 @@
 #define testnot(arg)            SINGLE(13, arg)
 #define zeroormore(arg)         optional(oneormore(arg))
 
-#define RULEINT(...)            __VA_OPT__(const int __VA_ARGS__ = __COUNTER__;)
-#define RULEINTS(arg, args...)  MAP(RULEINT, arg, EVERY_SECOND(args))
-#define RULENAMES(arg, args...) const char* CBOIL__names[] = {#arg MAP_LIST(STRING, EVERY_SECOND(args))""};
-#define RULEARR(args...)        const char* CBOIL__rules[] = {""MAP_LIST(PASTE, EVERY_SECOND(args))};
-#define RULES(arg, args...)     RULEINTS(arg, args) \
-                                const int CBOIL__size = __COUNTER__; \
-                                RULENAMES(arg, args) \
-                                RULEARR(arg, args)
-
-#define PARSE(rule, str)        CBoil.parse(CBOIL__rules[rule+1], str)
+#define RULES(name, rules...)   RuleSet name = {numargs(rules)/2, {rules}};
+#define RULE(name, rule)        {#name, rule}
 
 #endif

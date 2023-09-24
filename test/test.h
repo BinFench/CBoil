@@ -1,21 +1,21 @@
 #include "test.def"
 #include <CBoil.h>
 
-RULES(
-    number, capture("number", oneormore(charrange("0", "9"))),
-    parens, sequence("(", subrule(expression), ")"),
-    factor, capture("factor", firstof(subrule(number), subrule(parens))),
-    term, capture("term", sequence(subrule(factor),
+RULES(calculator,
+    RULE(number, capture("number", oneormore(charrange("0", "9")))),
+    RULE(parens, sequence("(", subrule(expression), ")")),
+    RULE(factor, capture("factor", firstof(subrule(number), subrule(parens)))),
+    RULE(term, capture("term", sequence(subrule(factor),
                         zeroormore(firstof(
                             sequence("*", subrule(factor)),
                             sequence("/", subrule(factor))
-                        )))),
-    expression, capture("expression", sequence(subrule(term),
+                        ))))),
+    RULE(expression, capture("expression", sequence(subrule(term),
                             zeroormore(firstof(
                                     sequence("+", subrule(term)),
                                     sequence("-", subrule(term))
-                            )))),
-    inputLine, sequence(subrule(expression), END)
+                            ))))),
+    RULE(inputLine, sequence(subrule(expression), END))
 )
 
 int calculate_expression(Capture* expr);
@@ -63,7 +63,7 @@ int calculate_expression(Capture* expr) {
 }
 
 int calculate(char* equation) {
-    Capture* res = PARSE(inputLine, equation);
+    Capture* res = CBoil.parse(&calculator, "inputLine", equation);
     int result = 0;
     if (res) {
         result = calculate_expression(res);

@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
-#include "CBoil/internals.h"
+#include "CBoil.h"
 
 void append(Token* token, char* str, uint16_t len) {
     // Append str[0:len] to dest string, fails if out of memory
