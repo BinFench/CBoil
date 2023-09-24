@@ -16,7 +16,7 @@ RULES(calculator,
                                     sequence("-", subrule(term))
                             ))))),
     RULE(inputLine, sequence(subrule(expression), END))
-)
+);
 
 int calculate_expression(Capture* expr);
 

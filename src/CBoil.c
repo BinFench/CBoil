@@ -229,7 +229,7 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
             if (*match) {
                 if (cap == capture || cap == &newCap || capture) {
                     curr = malloc(sizeof(Token));
-                    if (!cap) cap = &newCap;
+                    if (!cap || (cap != capture && cap != &newCap)) cap = &newCap;
                     *curr = (Token){0, NULL, cap, NULL, cap->lastCap};
                     if (cap->lastCap) cap->lastCap->next = curr;
                     cap->lastCap = curr;

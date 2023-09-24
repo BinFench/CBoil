@@ -38,7 +38,7 @@
 #define testnot(arg)            SINGLE(13, arg)
 #define zeroormore(arg)         optional(oneormore(arg))
 
-#define RULES(name, rules...)   RuleSet name = {numargs(rules)/2, {rules}};
+#define RULES(name, rules...)   RuleSet name = {numargs(rules)/2, {rules}}
 #define RULE(name, rule)        {#name, rule}
 
 #endif
