@@ -1,6 +1,7 @@
 CC=gcc
 CFLAGS= -c -Wall -Werror -fpic
 DEBUG_FLAGS= -g
+RELEASE_FLAGS= -O3
 OBJS=CBoil.o CBoil/printutils.o
 SHARED=libCBoil.so
 SHARED_FLAGS= -shared -o
@@ -24,7 +25,7 @@ install: static
 	@echo "Shared library installed."
 
 install-json:
-	@$(CC) -c -o CBoil/printutils.o CBoil/printutils.c -Wno-return-local-addr -DCSONDEP -lCSON $(CFLAGS) $(DEBUG_FLAGS)
+	@$(CC) -c -o CBoil/printutils.o CBoil/printutils.c -Wno-return-local-addr -DCSONDEP -lCSON $(CFLAGS) $(RELEASE_FLAGS)
 	@make static
 	@$(CC) $(SHARED_FLAGS) $(SHARED) libCBoil.o
 	@make uninstall --no-print-directory > /dev/null
@@ -49,10 +50,10 @@ uninstall:
 	@echo "Shared library uninstalled."
 
 %.o: %.c
-	@$(CC) -c -o $@ $< $(CFLAGS) $(DEBUG_FLAGS)
+	@$(CC) -c -o $@ $< $(CFLAGS) $(RELEASE_FLAGS)
 
 CBoil/printutils.o: CBoil/printutils.c
-	@$(CC) -c -o $@ $< -Wno-return-local-addr $(CFLAGS) $(DEBUG_FLAGS)
+	@$(CC) -c -o $@ $< -Wno-return-local-addr $(CFLAGS) $(RELEASE_FLAGS)
 
 clean:
 	@rm -f CBoil.o
