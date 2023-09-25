@@ -10,18 +10,34 @@ LIB=/usr/lib
 default: install
 
 static: $(OBJS)
-	ld -r -o libCBoil.o $(OBJS)
+	@ld -r -o libCBoil.o $(OBJS)
 
 install: static
-	$(CC) $(SHARED_FLAGS) $(SHARED) libCBoil.o
-	sudo cp $(SHARED) $(LIB)
-	sudo cp CBoil.h $(INC)
-	sudo cp CBoil.def $(INC)
-	sudo cp -r CBoil $(INC)
-	sudo chmod 0755 $(LIB)/$(SHARED)
-	sudo ldconfig
-	rm $(OBJS) $(SHARED) libCBoil.o
-	echo "Shared library installed."
+	@$(CC) $(SHARED_FLAGS) $(SHARED) libCBoil.o
+	@sudo cp $(SHARED) $(LIB)
+	@sudo cp CBoil.h $(INC)
+	@sudo cp CBoil.def $(INC)
+	@sudo cp -r CBoil $(INC)
+	@sudo chmod 0755 $(LIB)/$(SHARED)
+	@sudo ldconfig
+	@rm $(OBJS) $(SHARED) libCBoil.o
+	@echo "Shared library installed."
+
+install-json:
+	@$(CC) -c -o CBoil/printutils.o CBoil/printutils.c -Wno-return-local-addr -DCSONDEP -lCSON $(CFLAGS) $(DEBUG_FLAGS)
+	@make static
+	@$(CC) $(SHARED_FLAGS) $(SHARED) libCBoil.o
+	@make uninstall --no-print-directory > /dev/null
+	@sudo cp -R ../CBoildef /usr/include/
+	@sudo ldconfig
+	@sudo cp $(SHARED) $(LIB)
+	@sudo cp CBoil.h $(INC)
+	@sudo cp CBoil.def $(INC)
+	@sudo cp -r CBoil $(INC)
+	@sudo chmod 0755 $(LIB)/$(SHARED)
+	@sudo ldconfig
+	@rm $(OBJS) $(SHARED) libCBoil.o
+	@echo "Shared library installed."
 
 uninstall:
 	@sudo rm $(INC)/CBoil.h

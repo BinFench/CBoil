@@ -6,15 +6,15 @@
 
 int getCaptureSize(Capture* capture, int indent, bool singular) {
     /*
-                      indent     "    length of name  " {\n
-                      indent + 1 "tokens" [\n
+                      indent     "    length of name  ": {\n
+                      indent + 1 "tokens": [\n
     */
 
     int captureSize = indent;
     if (singular)
-        captureSize += 1 + strlen(capture->name) + 2;
+        captureSize += 1 + strlen(capture->name) + 3;
 
-    captureSize += 2 + indent + 12;
+    captureSize += 2 + indent + 13;
 
     Token* token = capture->firstCap;
     for (int i = 0; i < capture->numTokens;) {
@@ -27,12 +27,12 @@ int getCaptureSize(Capture* capture, int indent, bool singular) {
         token = token->next;
     }
 
-    //             indent + 1 ]\n
+    //             indent + 1 ],\n
 
-    captureSize += indent + 3;
+    captureSize += indent + 4;
     
-    //             indent + 1 "captures" {\n
-    captureSize += indent + 1 + 13;
+    //             indent + 1 "captures": {\n
+    captureSize += indent + 1 + 14;
 
     if (capture->numKVs != 0) {
         bool first = true;
@@ -89,6 +89,8 @@ int writeCapture(char* dump, Capture* capture, int indent, bool singular, int po
         newPos += strCopy(dump, newPos, capture->name, -1);
         dump[newPos] = '"';
         newPos++;
+        dump[newPos] = ':';
+        newPos++;
         dump[newPos] = ' ';
         newPos++;
     }
@@ -103,7 +105,7 @@ int writeCapture(char* dump, Capture* capture, int indent, bool singular, int po
     }
     newPos += indent+1;
 
-    newPos += strCopy(dump, newPos, "\"tokens\" [\n", -1);
+    newPos += strCopy(dump, newPos, "\"tokens\": [\n", -1);
 
     Token* token = capture->firstCap;
     for (int i = 0; i < capture->numTokens;) {
@@ -135,6 +137,8 @@ int writeCapture(char* dump, Capture* capture, int indent, bool singular, int po
     newPos += indent+1;
     dump[newPos] = ']';
     newPos++;
+    dump[newPos] = ',';
+    newPos++;
     dump[newPos] = '\n';
     newPos++;
 
@@ -142,7 +146,7 @@ int writeCapture(char* dump, Capture* capture, int indent, bool singular, int po
         dump[newPos + i] = '\t';
     }
     newPos += indent+1;
-    newPos += strCopy(dump, newPos, "\"captures\" {\n", -1);
+    newPos += strCopy(dump, newPos, "\"captures\": {\n", -1);
 
     if (capture->numKVs != 0) {
         bool first = true;
@@ -234,7 +238,7 @@ int numPlaces(int n) {
 
 int getRuleSize(Rule* rule, int indent, bool singular, int* off) {
     // Assume name not attached to rule
-    int size = indent + 2 + indent + 1 + 7;
+    int size = indent + 2 + indent + 1 + 7 + 6;
     int offset = 0;
     int idx = 0;
     int typelens[] = {3, 5, 7, 9, 3, 7, 10, 6, 9, 8, 7, 8, 4, 7};
@@ -284,6 +288,8 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
     }
     newPos += indent+1;
 
+    dump[newPos] = '"';
+    newPos++;
     dump[newPos] = 't';
     newPos++;
     dump[newPos] = 'y';
@@ -291,6 +297,8 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
     dump[newPos] = 'p';
     newPos++;
     dump[newPos] = 'e';
+    newPos++;
+    dump[newPos] = '"';
     newPos++;
     dump[newPos] = ':';
     newPos++;
@@ -528,6 +536,8 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
     }
     newPos += indent+1;
 
+    dump[newPos] = '"';
+    newPos++;
     dump[newPos] = 'n';
     newPos++;
     dump[newPos] = 'u';
@@ -549,6 +559,8 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
     dump[newPos] = 'e';
     newPos++;
     dump[newPos] = 'n';
+    newPos++;
+    dump[newPos] = '"';
     newPos++;
     dump[newPos] = ':';
     newPos++;
@@ -573,6 +585,8 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
         }
         newPos += indent+1;
 
+        dump[newPos] = '"';
+        newPos++;
         dump[newPos] = 'r';
         newPos++;
         dump[newPos] = 'u';
@@ -582,6 +596,8 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
         dump[newPos] = 'e';
         newPos++;
         dump[newPos] = 's';
+        newPos++;
+        dump[newPos] = '"';
         newPos++;
         dump[newPos] = ':';
         newPos++;
@@ -647,15 +663,57 @@ void dumpRule(const char* name, const char* rule) {
     // Print a Rule as JSON string
     int offset = 0;
     int nameLen = strlen(name);
-    const int size = getRuleSize((Rule*)rule, 0, true, &offset) + nameLen + 3;
+    const int size = getRuleSize((Rule*)rule, 0, true, &offset) + nameLen + 5;
     char dump[size + 1];
     for (int i = 0; i < size+1; i++)
         dump[i] = '\0';
-    strCopy(dump, 0, name, nameLen);
-    dump[nameLen] = ':';
-    dump[nameLen+1] = ' ';
+    dump[0] = '"';
+    strCopy(dump, 1, name, nameLen);
+    dump[nameLen+1] = '"';
+    dump[nameLen+2] = ':';
+    dump[nameLen+3] = ' ';
     int off = 0;
-    writeRule(dump, (Rule*)rule, &off, 0, nameLen + 2);
+    writeRule(dump, (Rule*)rule, &off, 0, nameLen + 4);
     dump[size] = '\0';
     printf("%s\n", dump);
 }
+
+void dumpRuleSet(RuleSet* ruleSet) {
+    if (ruleSet) {
+        for (int i = 0; i < ruleSet->size; i++) {
+            dumpRule(ruleSet->nrps[i].name, ruleSet->nrps[i].rule);
+        }
+    }
+}
+
+#ifdef CSONDEP
+#include <CSON.h>
+
+JSONObject* ruleToJSON(const char* rule) {
+    // Print a Rule as JSON string
+    int offset = 0;
+    const int size = getRuleSize((Rule*)rule, 0, true, &offset);
+    char dump[size + 1];
+    for (int i = 0; i < size+1; i++)
+        dump[i] = '\0';
+    int off = 0;
+    writeRule(dump, (Rule*)rule, &off, 0, 0);
+    dump[size] = '\0';
+
+    return CSON.parse(dump);
+}
+
+JSONObject* captureToJSON(Capture* capture) {
+    const int size = getCaptureSize(capture, 0, true) + 2;
+    char dump[size + 1];
+    for (int i = 0; i < size+1; i++)
+        dump[i] = '\0';
+    dump[0] = '{';
+    dump[size-1] = '}';
+    writeCapture(dump, capture, 0, true, 1);
+    dump[size] = '\0';
+
+    return CSON.parse(dump);
+}
+
+#endif

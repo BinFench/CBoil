@@ -15,5 +15,17 @@ test-mem:
 	@valgrind -v --track-origins=yes --leak-check=full --show-leak-kinds=all ./test
 	@rm test
 
+json:
+	@$(CC) $(CFLAGS) $(DEBUG_FLAGS) -o test test_JSON.c $(LIBS) -lCSON -DCSONDEP
+	@sudo chmod 0755 test
+	@./test
+	@rm test
+
+json-mem:
+	@$(CC) $(CFLAGS) $(DEBUG_FLAGS) -o test test_JSON.c $(LIBS) -lCSON -DCSONDEP
+	@sudo chmod 0755 test
+	@valgrind -v --track-origins=yes --leak-check=full --show-leak-kinds=all ./test
+	@rm test
+
 clean:
 	@rm -f test

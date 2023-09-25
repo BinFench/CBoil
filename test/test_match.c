@@ -22,6 +22,7 @@ int main() {
             ASSERT(numbers, "Expected 'number' in 'factor', but not found\n");
             Capture* number = numbers->captures;
             ASSERT(atoi(number->firstCap->str) == 1, "Expected to match '1', but got %s\n", number->firstCap->str);
+            dumpCapture(res);
             CBoil.clear(res);
         ),
         TEST(
