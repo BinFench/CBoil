@@ -48,17 +48,17 @@ int main() {
             JSONObject* term;
             for (int i = 0; i < calculator.size; i++) {
                 if (strcmp("term", calculator.nrps[i].name) == 0) {
-                    // dumpRule("term", calculator.nrps[i].rule);
                     term = ruleToJSON(calculator.nrps[i].rule);
                     break;
                 }
             }
 
             ASSERT(term, "Expected rule to represent as JSON\n");
-            ASSERT(strcmp(CSON.getString(term, "type"), "CAPTURE") == 0, "Expected term['type'] == 'CAPTURE'\n");
-            ASSERT(CSON.getInt(term, "numChildren") == 2, "Expected capture to have 2 children\n");
+            JSONObject* rule = CSON.getObject(term, "rule");
+            ASSERT(strcmp(CSON.getString(rule, "type"), "CAPTURE") == 0, "Expected term['type'] == 'CAPTURE'\n");
+            ASSERT(CSON.getInt(rule, "numChildren") == 2, "Expected capture to have 2 children\n");
 
-            JSONArray* termRules = CSON.getArray(term, "rules");
+            JSONArray* termRules = CSON.getArray(rule, "rules");
             ASSERT(termRules, "Expected term['rules']\n");
             ASSERT(strcmp(CSON.getStringFromArray(termRules, 0), "term") == 0, "Expected term['rules'][0] == 'term'\n");
 
