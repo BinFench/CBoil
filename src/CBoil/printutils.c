@@ -220,16 +220,6 @@ int writeCapture(char* dump, Capture* capture, int indent, bool singular, int po
     return newPos;
 }
 
-// void dumpCapture(Capture* capture) {
-//     const int size = getCaptureSize(capture, 0, true);
-//     char dump[size + 1];
-//     for (int i = 0; i < size+1; i++)
-//         dump[i] = '\0';
-//     writeCapture(dump, capture, 0, true, 0);
-//     dump[size] = '\0';
-//     printf("%s\n", dump);
-// }
-
 int numPlaces(int n) {
     if (n < 10) return 1;
     if (n < 100) return 2;
@@ -659,39 +649,12 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
     return newPos;
 }
 
-// void dumpRule(const char* name, const char* rule) {
-//     // Print a Rule as JSON string
-//     int offset = 0;
-//     int nameLen = strlen(name);
-//     const int size = getRuleSize((Rule*)rule, 0, true, &offset) + nameLen + 5;
-//     char dump[size + 1];
-//     for (int i = 0; i < size+1; i++)
-//         dump[i] = '\0';
-//     dump[0] = '"';
-//     strCopy(dump, 1, name, nameLen);
-//     dump[nameLen+1] = '"';
-//     dump[nameLen+2] = ':';
-//     dump[nameLen+3] = ' ';
-//     int off = 0;
-//     writeRule(dump, (Rule*)rule, &off, 0, nameLen + 4);
-//     dump[size] = '\0';
-//     printf("%s\n", dump);
-// }
-
-// void dumpRuleSet(RuleSet* ruleSet) {
-//     if (ruleSet) {
-//         for (int i = 0; i < ruleSet->size; i++) {
-//             dumpRule(ruleSet->nrps[i].name, ruleSet->nrps[i].rule);
-//         }
-//     }
-// }
-
 #ifdef CSONDEP
 #include <CSON.h>
 
 JSONObject* ruleToJSON(const char* rule) {
     char* name = "rule";
-    dumpRule(dump, name, rule)
+    dumpRule(dump, name, rule);
 
     return CSON.parse(dump);
 }
