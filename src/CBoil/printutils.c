@@ -78,32 +78,20 @@ int strCopy(char* dump, int pos, const char* string, int len) {
 }
 
 int writeCapture(char* dump, Capture* capture, int indent, bool singular, int pos) {
-    int newPos = pos + indent;
-    for (int i = 0; i < indent; i++) {
-        dump[pos + i] = '\t';
-    }
+    int newPos = pos;
+    for (int i = 0; i < indent; i++)
+        newPos += strCopy(dump, newPos, "\t", -1);
     
     if (singular) {
-        dump[newPos] = '"';
-        newPos++;
+        newPos += strCopy(dump, newPos, "\"", -1);
         newPos += strCopy(dump, newPos, capture->name, -1);
-        dump[newPos] = '"';
-        newPos++;
-        dump[newPos] = ':';
-        newPos++;
-        dump[newPos] = ' ';
-        newPos++;
+        newPos += strCopy(dump, newPos, "\": ", -1);
     }
 
-    dump[newPos] = '{';
-    newPos++;
-    dump[newPos] = '\n';
-    newPos++;
+    newPos += strCopy(dump, newPos, "{\n", -1);
 
-    for (int i = 0; i < indent+1; i++) {
-        dump[newPos + i] = '\t';
-    }
-    newPos += indent+1;
+    for (int i = 0; i < indent+1; i++)
+        newPos += strCopy(dump, newPos, "\t", -1);
 
     newPos += strCopy(dump, newPos, "\"tokens\": [\n", -1);
 
@@ -112,40 +100,24 @@ int writeCapture(char* dump, Capture* capture, int indent, bool singular, int po
         if (!token) break;
         if (capture == token->capture) {
             i++;
-            for (int i = 0; i < indent+2; i++) {
-                dump[newPos + i] = '\t';
-            }
-            newPos += indent+2;
-            dump[newPos] = '"';
-            newPos++;
+            for (int i = 0; i < indent+2; i++)
+                newPos += strCopy(dump, newPos, "\t", -1);
+            newPos += strCopy(dump, newPos, "\"", -1);
             newPos += strCopy(dump, newPos, token->str, token->size);
-            dump[newPos] = '"';
-            newPos++;
-            if (i < capture->numTokens) {
-                dump[newPos] = ',';
-                newPos++;
-            }
-            dump[newPos] = '\n';
-            newPos++;
+            newPos += strCopy(dump, newPos, "\"", -1);
+            if (i < capture->numTokens)
+                newPos += strCopy(dump, newPos, ",", -1);
+            newPos += strCopy(dump, newPos, "\n", -1);
         }
         token = token->next;
     }
 
-    for (int i = 0; i < indent+1; i++) {
-        dump[newPos + i] = '\t';
-    }
-    newPos += indent+1;
-    dump[newPos] = ']';
-    newPos++;
-    dump[newPos] = ',';
-    newPos++;
-    dump[newPos] = '\n';
-    newPos++;
+    for (int i = 0; i < indent+1; i++)
+        newPos += strCopy(dump, newPos, "\t", -1);
+    newPos += strCopy(dump, newPos, "],\n", -1);
 
-    for (int i = 0; i < indent+1; i++) {
-        dump[newPos + i] = '\t';
-    }
-    newPos += indent+1;
+    for (int i = 0; i < indent+1; i++)
+        newPos += strCopy(dump, newPos, "\t", -1);
     newPos += strCopy(dump, newPos, "\"captures\": {\n", -1);
 
     if (capture->numKVs != 0) {
@@ -153,69 +125,40 @@ int writeCapture(char* dump, Capture* capture, int indent, bool singular, int po
         for (int i = 0; i < capture->capacity; i++) {
             CaptureKVList* captures = &capture->subcaptures[i];
             if (captures && captures->matches > 0) {
-                if (!first) {
-                    dump[newPos] = ',';
-                    newPos++;
-                    dump[newPos] = '\n';
-                    newPos++;
-                }
+                if (!first) 
+                    newPos += strCopy(dump, newPos, ",\n", -1);
                 first = false;
                 if (captures->matches > 1) {
-                    for (int i = 0; i < indent+2; i++) {
-                        dump[newPos + i] = '\t';
-                    }
-                    newPos += indent+2;
-                    dump[newPos] = '"';
-                    newPos++;
+                    for (int i = 0; i < indent+2; i++)
+                        newPos += strCopy(dump, newPos, "\t", -1);
+                    newPos += strCopy(dump, newPos, "\"", -1);
                     newPos += strCopy(dump, newPos, captures->key, -1);
-                    dump[newPos] = '"';
-                    newPos++;
-                    dump[newPos] = ' ';
-                    newPos++;
-                    dump[newPos] = '[';
-                    newPos++;
-                    dump[newPos] = '\n';
-                    newPos++;
+                    newPos += strCopy(dump, newPos, "\" [\n", -1);
                     for (int j = 0; j < captures->matches; j++) {
                         newPos = writeCapture(dump, &captures->captures[j], indent + 3, false, newPos);
-                        if (j < captures->matches - 1) {
-                            dump[newPos] = ',';
-                            newPos++;
-                        }
-                        dump[newPos] = '\n';
-                        newPos++;
+                        if (j < captures->matches - 1) 
+                            newPos += strCopy(dump, newPos, ",", -1);
+                        newPos += strCopy(dump, newPos, "\n", -1);
                     }
 
-                    for (int j = 0; j < indent+2; j++) {
-                        dump[newPos + j] = '\t';
-                    }
-                    newPos += indent+2;
-                    dump[newPos] = ']';
-                    newPos++;
+                    for (int j = 0; j < indent+2; j++)
+                        newPos += strCopy(dump, newPos, "\t", -1);
+                    newPos += strCopy(dump, newPos, "]", -1);
                 } else {
                     newPos = writeCapture(dump, captures->captures, indent + 2, true, newPos);
                 }
-                dump[newPos] = '\n';
-                newPos++;
+                newPos += strCopy(dump, newPos, "\n", -1);
             }
         }
     }
 
-    for (int i = 0; i < indent+1; i++) {
-        dump[newPos + i] = '\t';
-    }
-    newPos += indent+1;
-    dump[newPos] = '}';
-    newPos++;
-    dump[newPos] = '\n';
-    newPos++;
+    for (int i = 0; i < indent+1; i++)
+        newPos += strCopy(dump, newPos, "\t", -1);
+    newPos += strCopy(dump, newPos, "}\n", -1);
 
-    for (int i = 0; i < indent; i++) {
-        dump[newPos + i] = '\t';
-    }
-    newPos += indent;
-    dump[newPos] = '}';
-    newPos++;
+    for (int i = 0; i < indent; i++)
+        newPos += strCopy(dump, newPos, "\t", -1);
+    newPos += strCopy(dump, newPos, "}", -1);
 
     return newPos;
 }
@@ -263,299 +206,68 @@ int getRuleSize(Rule* rule, int indent, bool singular, int* off) {
 }
 
 int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
-    int newPos = pos + indent;
-    for (int i = 0; i < indent; i++) {
-        dump[pos + i] = '\t';
-    }
+    int newPos = pos;
+    for (int i = 0; i < indent; i++)
+        newPos += strCopy(dump, newPos, "\t", -1);
 
-    dump[newPos] = '{';
-    newPos++;
-    dump[newPos] = '\n';
-    newPos++;
+    newPos += strCopy(dump, newPos, "{\n", -1);
 
-    for (int i = 0; i < indent+1; i++) {
-        dump[newPos + i] = '\t';
-    }
-    newPos += indent+1;
+    for (int i = 0; i < indent+1; i++)
+        newPos += strCopy(dump, newPos, "\t", -1);
 
-    dump[newPos] = '"';
-    newPos++;
-    dump[newPos] = 't';
-    newPos++;
-    dump[newPos] = 'y';
-    newPos++;
-    dump[newPos] = 'p';
-    newPos++;
-    dump[newPos] = 'e';
-    newPos++;
-    dump[newPos] = '"';
-    newPos++;
-    dump[newPos] = ':';
-    newPos++;
-    dump[newPos] = ' ';
-    newPos++;
-    dump[newPos] = '"';
-    newPos++;
+    newPos += strCopy(dump, newPos, "\"type\": \"", -1);
 
     switch(rule->type) {
         case ALL:
-            dump[newPos] = 'A';
-            newPos++;
-            dump[newPos] = 'L';
-            newPos++;
-            dump[newPos] = 'L';
-            newPos++;
+            newPos += strCopy(dump, newPos, "ALL", -1);
             break;
         case ANYOF:
-            dump[newPos] = 'A';
-            newPos++;
-            dump[newPos] = 'N';
-            newPos++;
-            dump[newPos] = 'Y';
-            newPos++;
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'F';
-            newPos++;
+            newPos += strCopy(dump, newPos, "ANYOF", -1);
             break;
         case CAPTURE:
-            dump[newPos] = 'C';
-            newPos++;
-            dump[newPos] = 'A';
-            newPos++;
-            dump[newPos] = 'P';
-            newPos++;
-            dump[newPos] = 'T';
-            newPos++;
-            dump[newPos] = 'U';
-            newPos++;
-            dump[newPos] = 'R';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
+            newPos += strCopy(dump, newPos, "CAPTURE", -1);
             break;
         case CHARRANGE:
-            dump[newPos] = 'C';
-            newPos++;
-            dump[newPos] = 'H';
-            newPos++;
-            dump[newPos] = 'A';
-            newPos++;
-            dump[newPos] = 'R';
-            newPos++;
-            dump[newPos] = 'R';
-            newPos++;
-            dump[newPos] = 'A';
-            newPos++;
-            dump[newPos] = 'N';
-            newPos++;
-            dump[newPos] = 'G';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
+            newPos += strCopy(dump, newPos, "CHARRANGE", -1);
             break;
         case EOI:
-            dump[newPos] = 'E';
-            newPos++;
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'I';
-            newPos++;
+            newPos += strCopy(dump, newPos, "EOI", -1);
             break;
         case FIRSTOF:
-            dump[newPos] = 'F';
-            newPos++;
-            dump[newPos] = 'I';
-            newPos++;
-            dump[newPos] = 'R';
-            newPos++;
-            dump[newPos] = 'S';
-            newPos++;
-            dump[newPos] = 'T';
-            newPos++;
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'F';
-            newPos++;
+            newPos += strCopy(dump, newPos, "FIRSTOF", -1);
             break;
         case IGNORECASE:
-            dump[newPos] = 'I';
-            newPos++;
-            dump[newPos] = 'G';
-            newPos++;
-            dump[newPos] = 'N';
-            newPos++;
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'R';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
-            dump[newPos] = 'C';
-            newPos++;
-            dump[newPos] = 'A';
-            newPos++;
-            dump[newPos] = 'S';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
+            newPos += strCopy(dump, newPos, "IGNORECASE", -1);
             break;
         case NONEOF:
-            dump[newPos] = 'N';
-            newPos++;
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'N';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'F';
-            newPos++;
+            newPos += strCopy(dump, newPos, "NONEOF", -1);
             break;
         case ONEORMORE:
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'N';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'R';
-            newPos++;
-            dump[newPos] = 'M';
-            newPos++;
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'R';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
+            newPos += strCopy(dump, newPos, "ONEORMORE", -1);
             break;
         case OPTIONAL:
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'P';
-            newPos++;
-            dump[newPos] = 'T';
-            newPos++;
-            dump[newPos] = 'I';
-            newPos++;
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'N';
-            newPos++;
-            dump[newPos] = 'A';
-            newPos++;
-            dump[newPos] = 'L';
-            newPos++;
+            newPos += strCopy(dump, newPos, "OPTIONAL", -1);
             break;
         case RULE_ENUM:
-            dump[newPos] = 'S';
-            newPos++;
-            dump[newPos] = 'U';
-            newPos++;
-            dump[newPos] = 'B';
-            newPos++;
-            dump[newPos] = 'R';
-            newPos++;
-            dump[newPos] = 'U';
-            newPos++;
-            dump[newPos] = 'L';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
+            newPos += strCopy(dump, newPos, "SUBRULE", -1);
             break;
         case SEQUENCE:
-            dump[newPos] = 'S';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
-            dump[newPos] = 'Q';
-            newPos++;
-            dump[newPos] = 'U';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
-            dump[newPos] = 'N';
-            newPos++;
-            dump[newPos] = 'C';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
+            newPos += strCopy(dump, newPos, "SEQUENCE", -1);
             break;
         case TEST:
-            dump[newPos] = 'T';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
-            dump[newPos] = 'S';
-            newPos++;
-            dump[newPos] = 'T';
-            newPos++;
+            newPos += strCopy(dump, newPos, "TEST", -1);
             break;
         case TESTNOT:
-            dump[newPos] = 'T';
-            newPos++;
-            dump[newPos] = 'E';
-            newPos++;
-            dump[newPos] = 'S';
-            newPos++;
-            dump[newPos] = 'T';
-            newPos++;
-            dump[newPos] = 'N';
-            newPos++;
-            dump[newPos] = 'O';
-            newPos++;
-            dump[newPos] = 'T';
-            newPos++;
+            newPos += strCopy(dump, newPos, "TESTNOT", -1);
             break;
     }
 
-    dump[newPos] = '"';
-    newPos++;
-    dump[newPos] = ',';
-    newPos++;
-    dump[newPos] = '\n';
-    newPos++;
+    newPos += strCopy(dump, newPos, "\",\n", -1);
 
-    for (int i = 0; i < indent+1; i++) {
-        dump[newPos + i] = '\t';
-    }
-    newPos += indent+1;
+    for (int i = 0; i < indent+1; i++)
+        newPos += strCopy(dump, newPos, "\t", -1);
 
-    dump[newPos] = '"';
-    newPos++;
-    dump[newPos] = 'n';
-    newPos++;
-    dump[newPos] = 'u';
-    newPos++;
-    dump[newPos] = 'm';
-    newPos++;
-    dump[newPos] = 'C';
-    newPos++;
-    dump[newPos] = 'h';
-    newPos++;
-    dump[newPos] = 'i';
-    newPos++;
-    dump[newPos] = 'l';
-    newPos++;
-    dump[newPos] = 'd';
-    newPos++;
-    dump[newPos] = 'r';
-    newPos++;
-    dump[newPos] = 'e';
-    newPos++;
-    dump[newPos] = 'n';
-    newPos++;
-    dump[newPos] = '"';
-    newPos++;
-    dump[newPos] = ':';
-    newPos++;
-    dump[newPos] = ' ';
-    newPos++;
+    newPos += strCopy(dump, newPos, "\"numChildren\": ", -1);
 
     int divider = 100;
     for (int i = 0; i < 3 - numPlaces(rule->numChildren); i++) divider /= 10;
@@ -565,86 +277,45 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
     }
 
     if (rule->numChildren > 0) {
-        dump[newPos] = ',';
-        newPos++;
-        dump[newPos] = '\n';
-        newPos++;
+        newPos += strCopy(dump, newPos, ",\n", -1);
 
-        for (int i = 0; i < indent+1; i++) {
-            dump[newPos + i] = '\t';
-        }
-        newPos += indent+1;
+        for (int i = 0; i < indent+1; i++)
+            newPos += strCopy(dump, newPos, "\t", -1);
 
-        dump[newPos] = '"';
-        newPos++;
-        dump[newPos] = 'r';
-        newPos++;
-        dump[newPos] = 'u';
-        newPos++;
-        dump[newPos] = 'l';
-        newPos++;
-        dump[newPos] = 'e';
-        newPos++;
-        dump[newPos] = 's';
-        newPos++;
-        dump[newPos] = '"';
-        newPos++;
-        dump[newPos] = ':';
-        newPos++;
-        dump[newPos] = ' ';
-        newPos++;
-        dump[newPos] = '[';
-        newPos++;
-        dump[newPos] = '\n';
-        newPos++;
+        newPos += strCopy(dump, newPos, "\"rules\": [\n", -1);
 
         int offset = 0;
         for (int i = 0; i < rule->numChildren; i++) {
             if (*(rule->child + offset) == '\0')
                 newPos = writeRule(dump, (Rule*)(rule->child + offset), &offset, indent + 2, newPos);
             else {
-                for (int i = 0; i < indent+2; i++) {
-                    dump[newPos + i] = '\t';
-                }
-                newPos += indent+2;
-                dump[newPos] = '"';
-                newPos++;
+                for (int i = 0; i < indent+2; i++)
+                    newPos += strCopy(dump, newPos, "\t", -1);
+                newPos += strCopy(dump, newPos, "\"", -1);
                 newPos += strCopy(dump, newPos, rule->child + offset, -1);
-                dump[newPos] = '"';
-                newPos++;
+                newPos += strCopy(dump, newPos, "\"", -1);
                 offset += strlen(rule->child + offset) + 1;
             }
-            if (i < rule->numChildren - 1) {
-                dump[newPos] = ',';
-                newPos++;
-            }
-            dump[newPos] = '\n';
-            newPos++;
+            if (i < rule->numChildren - 1)
+                newPos += strCopy(dump, newPos, ",", -1);
+            newPos += strCopy(dump, newPos, "\n", -1);
         }
 
         *off += offset + sizeof(Header) + 1;
 
-        for (int i = 0; i < indent+1; i++) {
-            dump[newPos + i] = '\t';
-        }
-        newPos += indent+1;
+        for (int i = 0; i < indent+1; i++)
+            newPos += strCopy(dump, newPos, "\t", -1);
 
-        dump[newPos] = ']';
-        newPos++;
-    } else {
+        newPos += strCopy(dump, newPos, "]", -1);
+    } else
         *off += sizeof(Rule);
-    }
 
-    dump[newPos] = '\n';
-    newPos++;
+    newPos += strCopy(dump, newPos, "\n", -1);
 
-    for (int i = 0; i < indent; i++) {
-        dump[newPos + i] = '\t';
-    }
-    newPos += indent;
+    for (int i = 0; i < indent; i++)
+        newPos += strCopy(dump, newPos, "\t", -1);
 
-    dump[newPos] = '}';
-    newPos++;
+    newPos += strCopy(dump, newPos, "}", -1);
 
     return newPos;
 }
