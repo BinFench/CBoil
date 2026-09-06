@@ -1,5 +1,7 @@
 #include "../CBoil.h"
 
+#include <stdbool.h>
+
 #ifndef CBOIL_PRINT_UTILS
 #define CBOIL_PRINT_UTILS
 

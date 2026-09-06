@@ -209,6 +209,18 @@ int main() {
             Capture* res = CBoil.parseRule(capture("pass", sequence(oneormore(charrange("0","9")), optional("."), zeroormore(charrange("0","9")))), "1");
             ASSERT(res, "Expected string to pass\n");
             CBoil.clear(res);
+        ),
+        TEST(
+            Capture* res = CBoil.parseRule(capture("memcondition", sequence(capture("lose", "abcde"), "f")), "abcdeg");
+            ASSERT(!res, "Expected string to fail\n");
+        ),
+        TEST(
+            Capture* res = CBoil.parseRule(capture("memcondition", sequence(oneormore(capture("lose", "a")), "b")), "aaaac");
+            ASSERT(!res, "Expected string to fail\n");
+        ),
+        TEST(
+            Capture* res = CBoil.parseRule(sequence(oneormore(capture("lose", "a")), "b"), "aaaac");
+            ASSERT(!res, "Expected string to fail\n");
         )
     );
     return 0;

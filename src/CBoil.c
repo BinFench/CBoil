@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "strutil.h"
 #include "CBoil.h"
@@ -170,6 +171,8 @@ static void redir(Capture* old, Capture* new) {
     }
 }
 
+static void _clear(Capture* capture, bool isRoot);
+
 static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr) {
     // Walk Rule tree and parse by current Rule
     Capture* cap = capture;
@@ -236,14 +239,23 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
                 }
                 cap = insert(capture, newCap);
                 redir(&newCap, cap);
-            } else if (newCap.firstCap) {
-                // Likely potential source of memory leaks, but need test to prove
-                if (newCap.firstCap->str) free(newCap.firstCap->str);
-                free(newCap.firstCap);
+            } else {
+                Token* orphan = newCap.lastCap;
+                while (orphan) {
+                    Token* prev = orphan->prev;
+                    if (orphan->capture == &newCap) {
+                        free(orphan->str);
+                        free(orphan);
+                    }
+                    orphan = prev;
+                }
+                newCap.firstCap = NULL;
+                newCap.lastCap = NULL;
+                _clear(&newCap, false);
             }
 
             // Rule size is size of Header + size of subrule
-            *off += offset + HEADER_SIZE + 1;
+            *off += offset + HEADER_SIZE;
 
             break;
 
@@ -344,10 +356,15 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
             // Match subrule as many times as possible, but at least once
             while (*match) {
                 offset = 0;
+                Capture* prevCap = cap;
 
                 if (rule->child[offset] == '\0')
                     cap = _parse(ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                 else if (!compString(src, capture, rule->child+offset, &offset)) *match = false;
+
+                // Without a parent capture, each iteration's match is an independent
+                // heap root; a superseded one has no other owner, so free it here.
+                if (!capture && prevCap && prevCap != cap) _clear(prevCap, true);
 
                 if (*match) firstMatch = true;
                 if (!*match) break;
@@ -408,6 +425,14 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
                 }
 
                 idx++;
+            }
+
+            // With no parent capture, cap is a heap root nothing else references;
+            // if the sequence ultimately failed, its owner (the caller of parseRule)
+            // never sees it, so it must be freed here.
+            if (!*match && !capture && cap) {
+                _clear(cap, true);
+                cap = NULL;
             }
 
             // Rule size is size of Header + size of subrules
