@@ -221,6 +221,17 @@ int main() {
         TEST(
             Capture* res = CBoil.parseRule(sequence(oneormore(capture("lose", "a")), "b"), "aaaac");
             ASSERT(!res, "Expected string to fail\n");
+        ),
+        TEST(
+            Capture* res = CBoil.parseRule(sequence(oneormore(capture("a", "a")), "b"), "aaaab");
+            ASSERT(res, "Expected string to pass\n");
+            CBoil.clear(res);
+        ),
+        TEST(
+            Capture* res = CBoil.parseRule(capture("As", sequence(oneormore(capture("a", "a")), "b")), "aaaab");
+            ASSERT(res, "Expected string to pass\n");
+            ASSERT(res->subcaptures->matches == 4, "Expected As to hold 4 instances of a");
+            CBoil.clear(res);
         )
     );
     return 0;

@@ -240,17 +240,6 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
                 cap = insert(capture, newCap);
                 redir(&newCap, cap);
             } else {
-                Token* orphan = newCap.lastCap;
-                while (orphan) {
-                    Token* prev = orphan->prev;
-                    if (orphan->capture == &newCap) {
-                        free(orphan->str);
-                        free(orphan);
-                    }
-                    orphan = prev;
-                }
-                newCap.firstCap = NULL;
-                newCap.lastCap = NULL;
                 _clear(&newCap, false);
             }
 
@@ -362,12 +351,19 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
                     cap = _parse(ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                 else if (!compString(src, capture, rule->child+offset, &offset)) *match = false;
 
-                // Without a parent capture, each iteration's match is an independent
-                // heap root; a superseded one has no other owner, so free it here.
-                if (!capture && prevCap && prevCap != cap) _clear(prevCap, true);
-
-                if (*match) firstMatch = true;
-                if (!*match) break;
+                if (*match) {
+                    firstMatch = true;
+                    // Without a parent capture, each iteration's match is an
+                    // independent heap root; a superseded one has no other
+                    // owner, so free it here.
+                    if (!capture && prevCap && prevCap != cap) _clear(prevCap, true);
+                } else {
+                    // This attempt produced nothing (or a now-dangling cap from
+                    // its own failure cleanup) - keep the last successful match
+                    // instead of letting the failed attempt clobber it.
+                    cap = prevCap;
+                    break;
+                }
             }
 
             if (firstMatch) *match = true;
@@ -509,7 +505,15 @@ static void _clear(Capture* capture, bool isRoot) {
         token = next;
     }
     if (token) free(token);
-    if (capture->lastCap != token && capture->lastCap != capture->firstCap) free(capture->lastCap);
+    if (capture->lastCap != token && capture->lastCap != capture->firstCap) {
+        Token* trailing = capture->lastCap;
+        while (trailing && trailing != token && trailing != capture->firstCap) {
+            Token* prev = trailing->prev;
+            free(trailing->str);
+            free(trailing);
+            trailing = prev;
+        }
+    }
 
     if (capture->numKVs != 0) {
         for (int i = 0; i < capture->capacity; i++) {
