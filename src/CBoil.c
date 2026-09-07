@@ -556,8 +556,24 @@ static void clear(Capture* capture) {
     _clear(capture, true);
 }
 
-static void setMemFuncs(void (*freeFunc)(void*), void* (*mallocFunc)(size_t), void* (*reallocFunc)(void*, size_t)) {
-    //TODO: Refactor the interface to not do illegal hacks to change the memfuncs used by CBoil
+static void _free(void* ptr) {
+    CBoil.cml->freeFunc(ptr);
 }
 
-const CBoilLib CBoil = {parse, parseRule, get, clear, free, malloc, realloc, setMemFuncs};
+static void* _malloc(size_t size) {
+    return CBoil.cml->mallocFunc(size);
+}
+
+static void* _realloc(void* ptr, size_t size) {
+    return CBoil.cml->reallocFunc(ptr, size);
+}
+
+static void setMemFuncs(void (*freeFunc)(void*), void* (*mallocFunc)(size_t), void* (*reallocFunc)(void*, size_t)) {
+    CBoil.cml->freeFunc = freeFunc;
+    CBoil.cml->mallocFunc = mallocFunc;
+    CBoil.cml->reallocFunc = reallocFunc;
+}
+
+CBoilMemLib cml = {free, malloc, realloc};
+
+const CBoilLib CBoil = {parse, parseRule, get, clear, _free, _malloc, _realloc, &cml, setMemFuncs};

@@ -87,6 +87,12 @@ typedef struct RuleSet {
     const Pair pairs[];
 } RuleSet;
 
+typedef struct CBoilMemLib {
+    void (*freeFunc)(void*);
+    void* (*mallocFunc)(size_t);
+    void* (*reallocFunc)(void*, size_t);
+} CBoilMemLib;
+
 typedef struct CBoilLib {
     Capture* (*parse)(RuleSet* ruleSet, const char* ruleName, char* src);
     Capture* (*parseRule)(const char* rule, char* src);
@@ -95,6 +101,7 @@ typedef struct CBoilLib {
     void (*freeFunc)(void*);
     void* (*mallocFunc)(size_t);
     void* (*reallocFunc)(void*, size_t);
+    CBoilMemLib* cml;
     void (*setMemFuncs)(void (*freeFunc)(void*), void* (*mallocFunc)(size_t), void* (*reallocFunc)(void*, size_t));
 } CBoilLib;
 
