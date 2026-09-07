@@ -232,6 +232,34 @@ int main() {
             ASSERT(res, "Expected string to pass\n");
             ASSERT(res->subcaptures->matches == 4, "Expected As to hold 4 instances of a");
             CBoil.clear(res);
+        ),
+        TEST(
+            int test = 0;
+            precalc = &test;
+            Capture* res = CBoil.parse(&precalculator, "inputLine", "1");
+            ASSERT(test == 1, "Expected precalc == 1\n");
+            CBoil.clear(res);
+        ),
+        TEST(
+            int test = 0;
+            precalc = &test;
+            Capture* res = CBoil.parse(&precalculator, "inputLine", "1+2");
+            ASSERT(test == 3, "Expected precalc == 3\n");
+            CBoil.clear(res);
+        ),
+        TEST(
+            int test = 0;
+            precalc = &test;
+            Capture* res = CBoil.parse(&precalculator, "inputLine", "3+1");
+            ASSERT(test == 4, "Expected precalc == 4\n");
+            CBoil.clear(res);
+        ),
+        TEST(
+            int test = 0;
+            precalc = &test;
+            Capture* res = CBoil.parse(&precalculator, "inputLine", "(7*2+6)/10");
+            ASSERT(test == 2, "Expected precalc == 2\n");
+            CBoil.clear(res);
         )
     );
     return 0;

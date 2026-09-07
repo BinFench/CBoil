@@ -19,7 +19,8 @@ typedef enum RTYPE {
     RULE_ENUM,
     SEQUENCE,
     TEST,
-    TESTNOT
+    TESTNOT,
+    TRANSFORM
 } RTYPE;
 
 typedef struct Rule {
@@ -60,6 +61,7 @@ typedef struct Capture {
     Capture* next;
     Token* firstCap;
     Token* lastCap;
+    void* structure;
 } Capture;
 
 typedef struct NameRulePair {
@@ -67,9 +69,22 @@ typedef struct NameRulePair {
     const char* rule;
 } NRP;
 
+typedef void* (*transformFunc)(Capture*);
+
+typedef struct NameFunctionPair {
+    const char* name;
+    const transformFunc function;
+} NFP;
+
+typedef union Pair {
+    const NRP nrp;
+    const NFP nfp;
+} Pair;
+
 typedef struct RuleSet {
-    const int size;
-    const NRP nrps[];
+    const int ruleSize;
+    const int transformSize;
+    const Pair pairs[];
 } RuleSet;
 
 typedef struct CBoilLib {
@@ -77,6 +92,10 @@ typedef struct CBoilLib {
     Capture* (*parseRule)(const char* rule, char* src);
     CaptureKVList* (*get)(Capture* capture, const char* name);
     void (*clear)(Capture* capture);
+    void (*freeFunc)(void*);
+    void* (*mallocFunc)(size_t);
+    void* (*reallocFunc)(void*, size_t);
+    void (*setMemFuncs)(void (*freeFunc)(void*), void* (*mallocFunc)(size_t), void* (*reallocFunc)(void*, size_t));
 } CBoilLib;
 
 extern const CBoilLib CBoil;

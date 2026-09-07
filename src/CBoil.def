@@ -14,31 +14,37 @@
 #include <CBoildef/VARIADIC.def>
 // numargs(...) counts arguments
 
-#define NULLSTR                 "\0\0\0\0\0\0\0\0"
-#define PASTE(...)              __VA_OPT__(__VA_ARGS__ "\0")
-#define SPACES(args...)         MAP(PASTE, args)
-#define STRING(...)             __VA_OPT__(#__VA_ARGS__)
+#define NULLSTR                         "\0\0\0\0\0\0\0\0"
+#define PASTE(...)                      __VA_OPT__(__VA_ARGS__ "\0")
+#define SPACES(args...)                 MAP(PASTE, args)
+#define STRING(...)                     __VA_OPT__(#__VA_ARGS__)
 
-#define EMPTY(type)             "\0" ASCII(type) ASCII0 NULLSTR
-#define SINGLE(type, arg)       "\0" ASCII(type) ASCII1 arg "\0"
-#define MULTI(type, args...)    "\0" ASCII(type) ASCII_NUMARGS(args) SPACES(args)
-#define ANY                     EMPTY(0)
-#define anyof(args...)          MULTI(1, args)
-#define capture(string, arg)    "\0" ASCII2 ASCII2 string "\0" arg "\0"
-#define charrange(a, b)         SINGLE(3, a b)
-#define END                     EMPTY(4)
-#define firstof(args...)        MULTI(5, args)
-#define ignorecase(string)      SINGLE(6, string)
-#define noneof(args...)         MULTI(7, args)
-#define oneormore(arg)          SINGLE(8, arg)
-#define optional(arg)           SINGLE(9, arg)
-#define subrule(arg)            SINGLE(10, #arg)
-#define sequence(args...)       MULTI(11, args)
-#define test(arg)               SINGLE(12, arg)
-#define testnot(arg)            SINGLE(13, arg)
-#define zeroormore(arg)         optional(oneormore(arg))
+#define EMPTY(type)                     "\0" ASCII(type) ASCII0 NULLSTR
+#define SINGLE(type, arg)               "\0" ASCII(type) ASCII1 arg "\0"
+#define MULTI(type, args...)            "\0" ASCII(type) ASCII_NUMARGS(args) SPACES(args)
+#define ANY                             EMPTY(0)
+#define anyof(args...)                  MULTI(1, args)
+#define capture(string, arg)            "\0" ASCII2 ASCII2 string "\0" arg "\0"
+#define charrange(a, b)                 SINGLE(3, a b)
+#define END                             EMPTY(4)
+#define firstof(args...)                MULTI(5, args)
+#define ignorecase(string)              SINGLE(6, string)
+#define noneof(args...)                 MULTI(7, args)
+#define oneormore(arg)                  SINGLE(8, arg)
+#define optional(arg)                   SINGLE(9, arg)
+#define subrule(arg)                    SINGLE(10, #arg)
+#define sequence(args...)               MULTI(11, args)
+#define test(arg)                       SINGLE(12, arg)
+#define testnot(arg)                    SINGLE(13, arg)
+#define zeroormore(arg)                 optional(oneormore(arg))
+#define transform(func, arg)            "\0" ASCII14 ASCII2 #func "\0" arg "\0"
 
-#define RULES(name, rules...)   RuleSet name = {numargs(rules)/2, {rules}}
-#define RULE(name, rule)        {#name, rule}
+#define RULES(name, rules...)           RuleSet name = {.ruleSize=numargs(rules)/2, .pairs={rules}}
+#define NAMERULES(name, rules...)       name
+#define RULESRULES(name, rules...)      rules
+#define RULE(name, rule)                {.nrp={#name, rule}}
+#define TRANSFORM(func)                 {.nfp={#func, func}}
+
+#define PARSER(rules, transforms...)    RuleSet NAME##rules = {.ruleSize=numargs(RULES##rules)/2, .transformSize=numargs(transforms)/2, .pairs={RULES##rules, transforms}}
 
 #endif

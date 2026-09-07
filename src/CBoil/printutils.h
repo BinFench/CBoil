@@ -37,21 +37,21 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos);
 #define dumpRule(name, rname, rule) _dumpRule(name, rname, rule, __COUNTER__);
 
 #define _dumpRules(dumpname, rules, num)\
-    int CONCAT(CBOIL__DUMPSIZE, num) = rules.size*2 + 1;\
-    for (int CBOIL__i = 0; CBOIL__i < rules.size; CBOIL__i++) {\
+    int CONCAT(CBOIL__DUMPSIZE, num) = rules.ruleSize*2 + 1;\
+    for (int CBOIL__i = 0; CBOIL__i < rules.ruleSize; CBOIL__i++) {\
         int CONCAT(CBOIL__OFFSET, num) = 0;\
-        CONCAT(CBOIL__DUMPSIZE, num) += strlen(rules.nrps[CBOIL__i].name) + 5 + getRuleSize((Rule*)rules.nrps[CBOIL__i].rule, 0, true, &CONCAT(CBOIL__OFFSET, num));}\
+        CONCAT(CBOIL__DUMPSIZE, num) += strlen(rules.pairs[CBOIL__i].nrp.name) + 5 + getRuleSize((Rule*)rules.pairs[CBOIL__i].nrp.rule, 0, true, &CONCAT(CBOIL__OFFSET, num));}\
     char dumpname[CONCAT(CBOIL__DUMPSIZE, num)+3];\
     int CONCAT(CBOIL__OFFSET, num) = strCopy(dumpname, CONCAT(CBOIL__OFFSET, num), "{\n", -1);\
-    for (int CBOIL__i = 0; CBOIL__i < rules.size; CBOIL__i++) {\
-        int CONCAT(CBOIL__NAMELEN, num) = strlen(rules.nrps[CBOIL__i].name);\
+    for (int CBOIL__i = 0; CBOIL__i < rules.ruleSize; CBOIL__i++) {\
+        int CONCAT(CBOIL__NAMELEN, num) = strlen(rules.pairs[CBOIL__i].nrp.name);\
         CONCAT(CBOIL__OFFSET, num) += strCopy(dumpname, CONCAT(CBOIL__OFFSET, num), "\"", -1);\
-        CONCAT(CBOIL__OFFSET, num) += strCopy(dumpname, CONCAT(CBOIL__OFFSET, num), rules.nrps[CBOIL__i].name, CONCAT(CBOIL__NAMELEN, num));\
+        CONCAT(CBOIL__OFFSET, num) += strCopy(dumpname, CONCAT(CBOIL__OFFSET, num), rules.pairs[CBOIL__i].nrp.name, CONCAT(CBOIL__NAMELEN, num));\
         CONCAT(CBOIL__OFFSET, num) += strCopy(dumpname, CONCAT(CBOIL__OFFSET, num), "\": ", -1);\
         int CONCAT(CBOIL__TMP, num) = 0;\
-        writeRule(dumpname, (Rule*)rules.nrps[CBOIL__i].rule, &CONCAT(CBOIL__TMP, num), 0, CONCAT(CBOIL__OFFSET, num));\
+        writeRule(dumpname, (Rule*)rules.pairs[CBOIL__i].nrp.rule, &CONCAT(CBOIL__TMP, num), 0, CONCAT(CBOIL__OFFSET, num));\
         CONCAT(CBOIL__TMP, num) = 0;\
-        CONCAT(CBOIL__OFFSET, num) += getRuleSize((Rule*)rules.nrps[CBOIL__i].rule, 0, true, &CONCAT(CBOIL__TMP, num));\
+        CONCAT(CBOIL__OFFSET, num) += getRuleSize((Rule*)rules.pairs[CBOIL__i].nrp.rule, 0, true, &CONCAT(CBOIL__TMP, num));\
         CONCAT(CBOIL__OFFSET, num) += strCopy(dumpname, CONCAT(CBOIL__OFFSET, num), ",\n", -1);}\
     /* TODO: This index offset is weird, possible bug*/\
     CONCAT(CBOIL__OFFSET, num) += strCopy(dumpname, CONCAT(CBOIL__OFFSET, num)-4, "}\0", 2);

@@ -10,7 +10,7 @@ const uint8_t RULE_SIZE = sizeof(Rule) + 8;
 static void progress(char** src, Capture* capture, int amount) {
     // Encapsulate substring in token within capture, repoint src by amount
     if (capture && !capture->lastCap) {
-        capture->lastCap = malloc(sizeof(Token));
+        capture->lastCap = CBoil.mallocFunc(sizeof(Token));
         *(capture->lastCap) = (Token){amount, NULL, capture, NULL, NULL};
         capture->firstCap = capture->lastCap;
         capture->numTokens++;
@@ -125,7 +125,7 @@ static CaptureKVList* get(Capture* capture, const char* name) {
 static Capture* insert(Capture* parent, Capture child) {
     // Given a parent and child Captures, perform hash insertion
     if (!parent) {
-        parent = malloc(sizeof(Capture));
+        parent = CBoil.mallocFunc(sizeof(Capture));
         *parent = child;
         return parent;
     }
@@ -134,14 +134,14 @@ static Capture* insert(Capture* parent, Capture child) {
         if (parent->capacity == 0) parent->capacity = INITIAL_CAPACITY;
         else parent->capacity *= 2;
 
-        parent->subcaptures = realloc(parent->subcaptures, parent->capacity*sizeof(CaptureKVList));
+        parent->subcaptures = CBoil.reallocFunc(parent->subcaptures, parent->capacity*sizeof(CaptureKVList));
         if (parent->capacity == INITIAL_CAPACITY) for (int i = 0; i < INITIAL_CAPACITY; i++)
             parent->subcaptures[i] = (CaptureKVList){NULL, 0, NULL};
         else for (int i = parent->capacity / 2; i < parent->capacity; i++)
             parent->subcaptures[i] = (CaptureKVList){NULL, 0, NULL};
     } else if (match) {
         match->matches++;
-        match->captures = realloc(match->captures, match->matches*sizeof(Capture));
+        match->captures = CBoil.reallocFunc(match->captures, match->matches*sizeof(Capture));
         match->captures[match->matches - 1] = child;
         return (match->captures + match->matches - 1);
     }
@@ -154,7 +154,7 @@ static Capture* insert(Capture* parent, Capture child) {
         if (index >= parent->capacity) index = 0;
     }
 
-    parent->subcaptures[index] = (CaptureKVList){child.name, 1, malloc(sizeof(Capture))};
+    parent->subcaptures[index] = (CaptureKVList){child.name, 1, CBoil.mallocFunc(sizeof(Capture))};
     parent->subcaptures[index].captures[0] = child;
     parent->numKVs++;
     return parent->subcaptures[index].captures;
@@ -177,6 +177,7 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
     // Walk Rule tree and parse by current Rule
     Capture* cap = capture;
     Capture* seqCap;
+    transformFunc tf;
     char* currSrc = *src;
     Capture newCap;
     uint8_t idx = 0;
@@ -219,6 +220,8 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
             *off += traverse(++idx, rule, &offset) + HEADER_SIZE;
             break;
 
+        case TRANSFORM:
+            // Match on subrule, encapsulate within Capture, pass Capture into function pointer.
         case CAPTURE:
             // Matches on subrule, captures matching text
             newCap = (Capture){rule->child, 0, 0, 0, NULL, NULL, NULL};
@@ -231,7 +234,7 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
             // Upon match, add new Token to AST
             if (*match) {
                 if (cap == capture || cap == &newCap || capture) {
-                    curr = malloc(sizeof(Token));
+                    curr = CBoil.mallocFunc(sizeof(Token));
                     if (!cap || (cap != capture && cap != &newCap)) cap = &newCap;
                     *curr = (Token){0, NULL, cap, NULL, cap->lastCap};
                     if (cap->lastCap) cap->lastCap->next = curr;
@@ -241,6 +244,24 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
                 redir(&newCap, cap);
             } else {
                 _clear(&newCap, false);
+            }
+
+            if (rule->type == TRANSFORM && (!ruleSet || ruleSet->transformSize == 0)) *match = false;
+
+            if (rule->type == TRANSFORM && *match) {
+                for (int i = 0; i < ruleSet->transformSize; i++) {
+                    if (strcmp(rule->child, ruleSet->pairs[ruleSet->ruleSize + i].nfp.name) == 0) {
+                        found = true;
+                        tf = ruleSet->pairs[ruleSet->ruleSize + i].nfp.function;
+                        break;
+                    }
+                }
+                *match = found;
+            }
+
+            if (rule->type == TRANSFORM && *match) {
+                void* structure = tf(cap);
+                cap->structure = structure;
             }
 
             // Rule size is size of Header + size of subrule
@@ -390,10 +411,10 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
             // Match subrule.  Used for recursion
             // Find named rule
             if (ruleSet) {
-                for (int i = 0; i < ruleSet->size; i++) {
-                    if (strcmp(rule->child, ruleSet->nrps[i].name) == 0) {
+                for (int i = 0; i < ruleSet->ruleSize; i++) {
+                    if (strcmp(rule->child, ruleSet->pairs[i].nrp.name) == 0) {
                         found = true;
-                        cap = _parse(ruleSet, (Rule*)ruleSet->nrps[i].rule, src, capture, match, &offset, curr);
+                        cap = _parse(ruleSet, (Rule*)ruleSet->pairs[i].nrp.rule, src, capture, match, &offset, curr);
                         // Rule size is size of header + string length + null termination
                         *off += strlen(rule->child) + 1 + HEADER_SIZE;
                         break;
@@ -467,9 +488,9 @@ static Capture* parse(RuleSet* ruleSet, const char* ruleName, char* src) {
     if (ruleSet == NULL) return NULL;
     bool match = true;
     Rule* rule = NULL;
-    for (int i = 0; i < ruleSet->size; i++) {
-        if (strcmp(ruleName, ruleSet->nrps[i].name) == 0) {
-            rule = (Rule*)ruleSet->nrps[i].rule;
+    for (int i = 0; i < ruleSet->ruleSize; i++) {
+        if (strcmp(ruleName, ruleSet->pairs[i].nrp.name) == 0) {
+            rule = (Rule*)ruleSet->pairs[i].nrp.rule;
         }
     }
     uint16_t offset = 0;
@@ -496,21 +517,21 @@ static void _clear(Capture* capture, bool isRoot) {
         Token* next = token->next;
         if (capture == token->capture) {
             i++;
-            free(token->str);
-            free(token);
+            CBoil.freeFunc(token->str);
+            CBoil.freeFunc(token);
         } else if (token == capture->firstCap) {
-            free(token->str);
-            free(token);
+            CBoil.freeFunc(token->str);
+            CBoil.freeFunc(token);
         }
         token = next;
     }
-    if (token) free(token);
+    if (token) CBoil.freeFunc(token);
     if (capture->lastCap != token && capture->lastCap != capture->firstCap) {
         Token* trailing = capture->lastCap;
         while (trailing && trailing != token && trailing != capture->firstCap) {
             Token* prev = trailing->prev;
-            free(trailing->str);
-            free(trailing);
+            CBoil.freeFunc(trailing->str);
+            CBoil.freeFunc(trailing);
             trailing = prev;
         }
     }
@@ -522,17 +543,21 @@ static void _clear(Capture* capture, bool isRoot) {
                 for (int j = 0; j < captures->matches; j++) {
                     _clear(captures->captures+j, false);
                 }
-                free(captures->captures);
+                CBoil.freeFunc(captures->captures);
             }
         }
-        free(capture->subcaptures);
+        CBoil.freeFunc(capture->subcaptures);
     }
 
-    if (isRoot) free(capture);
+    if (isRoot) CBoil.freeFunc(capture);
 }
 
 static void clear(Capture* capture) {
     _clear(capture, true);
 }
 
-const CBoilLib CBoil = {parse, parseRule, get, clear};
+static void setMemFuncs(void (*freeFunc)(void*), void* (*mallocFunc)(size_t), void* (*reallocFunc)(void*, size_t)) {
+    //TODO: Refactor the interface to not do illegal hacks to change the memfuncs used by CBoil
+}
+
+const CBoilLib CBoil = {parse, parseRule, get, clear, free, malloc, realloc, setMemFuncs};
