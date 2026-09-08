@@ -260,6 +260,9 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
         case TESTNOT:
             newPos += strCopy(dump, newPos, "TESTNOT", -1);
             break;
+        case TRANSFORM:
+            newPos += strCopy(dump, newPos, "TRANSFORM", -1);
+            break;
     }
 
     newPos += strCopy(dump, newPos, "\",\n", -1);
