@@ -39,7 +39,7 @@
 #define zeroormore(arg)                 optional(oneormore(arg))
 #define transform(func, arg)            "\0" ASCII14 ASCII2 #func "\0" arg "\0"
 
-#define RULES(name, rules...)           RuleSet name = {.ruleSize=numargs(rules)/2, .pairs={rules}}
+#define RULES(name, rules...)           RuleSet name = {.ruleSize=numargs(rules)/2, .transformSize=0, .cleanupSize=0, .pairs={rules}}
 #define NAMERULES(name, rules...)       name
 #define RULESRULES(name, rules...)      rules
 #define RULE(name, rule)                {.nrp={#name, rule}}

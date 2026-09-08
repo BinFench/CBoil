@@ -192,6 +192,7 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
     uint16_t offset = 0;
     bool firstMatch = false;
     bool found = false;
+    bool argIsNested = false;
     char a;
     char b;
     char min;
@@ -232,10 +233,11 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
             // Match on subrule, encapsulate within Capture, pass Capture into function pointer.
         case CAPTURE:
             // Matches on subrule, captures matching text
-            newCap = (Capture){rule->child, 0, 0, 0, NULL, NULL, NULL, NULL, ruleSet};
+            newCap = (Capture){rule->child, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, ruleSet};
             offset += strlen(rule->child) + 1;
+            argIsNested = (rule->child[offset] == '\0');
 
-            if (rule->child[offset] == '\0')
+            if (argIsNested)
                 cap = _parse(ruleSet, (Rule*)(rule->child+offset), src, &newCap, match, &offset, curr);
             else if (!compString(src, &newCap, rule->child+offset, &offset)) *match = false;
 
@@ -272,8 +274,8 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
                 cap->structure = structure;
             }
 
-            // Rule size is size of Header + size of subrule
-            *off += offset + HEADER_SIZE;
+            // Rule size is size of Header + size of subrule + 1 for termination if subrule is a nested rule
+            *off += offset + HEADER_SIZE + (argIsNested ? 1 : 0);
 
             break;
 
