@@ -43,8 +43,11 @@
 #define NAMERULES(name, rules...)       name
 #define RULESRULES(name, rules...)      rules
 #define RULE(name, rule)                {.nrp={#name, rule}}
-#define TRANSFORM(func)                 {.nfp={#func, func}}
+#define TRANSFORM(func, ...) \
+    {.nfp={#func, func}} \
+    __VA_OPT__(, {.cfp={#func "_cleanup_" #__VA_ARGS__, __VA_ARGS__}})
 
-#define PARSER(rules, transforms...)    RuleSet NAME##rules = {.ruleSize=numargs(RULES##rules)/2, .transformSize=numargs(transforms)/2, .pairs={RULES##rules, transforms}}
+#define PARSER(rules, transforms...) \
+    RuleSet NAME##rules = {.ruleSize=numargs(RULES##rules)/2, .transformSize=numargs(transforms)/2, .cleanupSize=0, .pairs={RULES##rules, transforms}}
 
 #endif

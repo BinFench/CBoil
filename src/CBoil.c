@@ -143,6 +143,10 @@ static Capture* insert(Capture* parent, Capture child) {
         match->matches++;
         match->captures = CBoil.reallocFunc(match->captures, match->matches*sizeof(Capture));
         match->captures[match->matches - 1] = child;
+        // Preserve ruleSet from parent if child doesn't have one
+        if (!match->captures[match->matches - 1].ruleSet && parent->ruleSet) {
+            match->captures[match->matches - 1].ruleSet = parent->ruleSet;
+        }
         return (match->captures + match->matches - 1);
     }
 
@@ -156,6 +160,10 @@ static Capture* insert(Capture* parent, Capture child) {
 
     parent->subcaptures[index] = (CaptureKVList){child.name, 1, CBoil.mallocFunc(sizeof(Capture))};
     parent->subcaptures[index].captures[0] = child;
+    // Preserve ruleSet from parent if child doesn't have one
+    if (!parent->subcaptures[index].captures[0].ruleSet && parent->ruleSet) {
+        parent->subcaptures[index].captures[0].ruleSet = parent->ruleSet;
+    }
     parent->numKVs++;
     return parent->subcaptures[index].captures;
 }
@@ -224,7 +232,7 @@ static Capture* _parse(RuleSet* ruleSet, Rule* rule, char** src, Capture* captur
             // Match on subrule, encapsulate within Capture, pass Capture into function pointer.
         case CAPTURE:
             // Matches on subrule, captures matching text
-            newCap = (Capture){rule->child, 0, 0, 0, NULL, NULL, NULL};
+            newCap = (Capture){rule->child, 0, 0, 0, NULL, NULL, NULL, NULL, ruleSet};
             offset += strlen(rule->child) + 1;
 
             if (rule->child[offset] == '\0')
@@ -495,7 +503,10 @@ static Capture* parse(RuleSet* ruleSet, const char* ruleName, char* src) {
     }
     uint16_t offset = 0;
     Capture* cap = _parse(ruleSet, rule, &src, NULL, &match, &offset, NULL);
-    
+
+    // Set ruleSet on root capture if it exists
+    if (cap && !cap->ruleSet) cap->ruleSet = ruleSet;
+
     return match ? cap : NULL;
 }
 
@@ -510,6 +521,25 @@ static Capture* parseRule(const char* rule, char* src) {
 
 static void _clear(Capture* capture, bool isRoot) {
     // Cleanup function
+
+    // Run cleanup functions if structure exists
+    if (capture->structure && capture->ruleSet) {
+        int transformStart = capture->ruleSet->ruleSize;
+        // Estimate end of transform pairs (this is approximate, actual count varies)
+        int transformEnd = transformStart + capture->ruleSet->transformSize * 2;
+        int captureNameLen = strlen(capture->name);
+
+        for (int i = transformStart; i < transformEnd; i++) {
+            const char* pairName = capture->ruleSet->pairs[i].nfp.name;
+            // Check if cleanup name starts with capture name followed by "_cleanup_"
+            if (pairName && strncmp(pairName, capture->name, captureNameLen) == 0 &&
+                pairName[captureNameLen] == '_' &&
+                strncmp(&pairName[captureNameLen + 1], "cleanup_", 8) == 0) {
+                // Call the cleanup function (same memory layout as NFP for function pointer)
+                capture->ruleSet->pairs[i].cfp.function(capture->structure);
+            }
+        }
+    }
 
     Token* token = capture->firstCap;
     for (int i = 0; i < capture->numTokens;) {

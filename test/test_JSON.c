@@ -46,9 +46,9 @@ int main() {
         ),
         TEST(
             JSONObject* term;
-            for (int i = 0; i < calculator.size; i++) {
-                if (strcmp("term", calculator.nrps[i].name) == 0) {
-                    term = ruleToJSON(calculator.nrps[i].rule);
+            for (int i = 0; i < calculator.ruleSize; i++) {
+                if (strcmp("term", calculator.pairs[i].nrp.name) == 0) {
+                    term = ruleToJSON(calculator.pairs[i].nrp.rule);
                     break;
                 }
             }

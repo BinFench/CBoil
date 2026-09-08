@@ -37,6 +37,7 @@ typedef struct Header {
 } Header;
 
 typedef struct Capture Capture;
+typedef struct RuleSet RuleSet;
 
 typedef struct Token {
     uint16_t size;
@@ -62,6 +63,7 @@ typedef struct Capture {
     Token* firstCap;
     Token* lastCap;
     void* structure;
+    RuleSet* ruleSet;
 } Capture;
 
 typedef struct NameRulePair {
@@ -70,20 +72,28 @@ typedef struct NameRulePair {
 } NRP;
 
 typedef void* (*transformFunc)(Capture*);
+typedef void (*cleanupFunc)(void*);
 
 typedef struct NameFunctionPair {
     const char* name;
     const transformFunc function;
 } NFP;
 
+typedef struct CleanupFunctionPair {
+    const char* name;
+    const cleanupFunc function;
+} CFP;
+
 typedef union Pair {
     const NRP nrp;
     const NFP nfp;
+    const CFP cfp;
 } Pair;
 
 typedef struct RuleSet {
     const int ruleSize;
     const int transformSize;
+    const int cleanupSize;
     const Pair pairs[];
 } RuleSet;
 
