@@ -33,7 +33,7 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos);
     CONCAT(CBOIL__OFFSET, num) += strCopy(name, CONCAT(CBOIL__OFFSET, num), "\": ", -1);\
     CONCAT(CBOIL__OFFSET, num) = 0;\
     writeRule(name, (Rule*)rule, &CONCAT(CBOIL__OFFSET, num), 0, CONCAT(CBOIL__NAMELEN, num)+5);\
-    strCopy(name, CONCAT(CBOIL__DUMPSIZE, num), "}\0", -1);
+    strCopy(name, CONCAT(CBOIL__DUMPSIZE, num), "}\0", 2);
 #define dumpRule(name, rname, rule) _dumpRule(name, rname, rule, __COUNTER__);
 
 #define _dumpRules(dumpname, rules, num)\

@@ -7,6 +7,7 @@
 #include <CBoil/printutils.h>
 
 int main() {
+    CBOIL_INIT();
     TESTS(
         TEST(
             Capture* res = CBoil.parse(&calculator, "inputLine", "1");
@@ -262,5 +263,6 @@ int main() {
             CBoil.clear(res);
         )
     );
+    CBOIL_CLEANUP();
     return 0;
 }

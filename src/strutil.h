@@ -7,10 +7,10 @@
 #include <assert.h>
 #include "CBoil.h"
 
-void append(Token* token, char* str, uint16_t len) {
+void append(CBoilMemLib* cml, Token* token, char* str, uint16_t len) {
     // Append str[0:len] to dest string, fails if out of memory
     uint16_t size = (token->str) ? strlen(token->str) : 0;
-    token->str = (char*)CBoil.reallocFunc(token->str, size + len + 1);
+    token->str = (char*)cml->reallocFunc(token->str, size + len + 1);
     assert(token->str);
     memcpy((token->str + size), str, len);
     token->str[size + len] = '\0';

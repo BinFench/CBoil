@@ -115,7 +115,65 @@ typedef struct CBoilLib {
     void (*setMemFuncs)(void (*freeFunc)(void*), void* (*mallocFunc)(size_t), void* (*reallocFunc)(void*, size_t));
 } CBoilLib;
 
-extern const CBoilLib CBoil;
+// Forward declarations - these need to be non-static and exported from CBoil.c
+Capture* cboil_parse(CBoilMemLib* cml, RuleSet* ruleSet, const char* ruleName, char* src);
+Capture* cboil_parseRule(CBoilMemLib* cml, const char* rule, char* src);
+CaptureKVList* cboil_get(Capture* capture, const char* name);
+void cboil_clear(CBoilMemLib* cml, Capture* capture);
+
+// Global context for current CBoil instance (set by CBOIL_INIT)
+static CBoilMemLib* _global_cboil_context = NULL;
+
+// Wrapper functions that use the global context
+static inline Capture* _cboil_parse_wrapper(RuleSet* ruleSet, const char* ruleName, char* src) {
+    return cboil_parse(_global_cboil_context, ruleSet, ruleName, src);
+}
+static inline Capture* _cboil_parseRule_wrapper(const char* rule, char* src) {
+    return cboil_parseRule(_global_cboil_context, rule, src);
+}
+static inline CaptureKVList* _cboil_get_wrapper(Capture* capture, const char* name) {
+    return cboil_get(capture, name);
+}
+static inline void _cboil_clear_wrapper(Capture* capture) {
+    cboil_clear(_global_cboil_context, capture);
+}
+static inline void _cboil_free_wrapper(void* ptr) {
+    _global_cboil_context->freeFunc(ptr);
+}
+static inline void* _cboil_malloc_wrapper(size_t size) {
+    return _global_cboil_context->mallocFunc(size);
+}
+static inline void* _cboil_realloc_wrapper(void* ptr, size_t size) {
+    return _global_cboil_context->reallocFunc(ptr, size);
+}
+static inline void _cboil_setMemFuncs_wrapper(void (*freeFunc)(void*), void* (*mallocFunc)(size_t), void* (*reallocFunc)(void*, size_t)) {
+    _global_cboil_context->freeFunc = freeFunc;
+    _global_cboil_context->mallocFunc = mallocFunc;
+    _global_cboil_context->reallocFunc = reallocFunc;
+}
+
+// Global CBoil instance (defined when CBOIL_INIT is called)
+static CBoilLib _global_cboil_struct __attribute__((unused));
+#define CBoil _global_cboil_struct
+
+#define CBOIL_INIT() \
+    static CBoilMemLib _cboil_memlib = {free, malloc, realloc}; \
+    _global_cboil_context = &_cboil_memlib; \
+    \
+    _global_cboil_struct = (CBoilLib){ \
+        .parse = _cboil_parse_wrapper, \
+        .parseRule = _cboil_parseRule_wrapper, \
+        .get = _cboil_get_wrapper, \
+        .clear = _cboil_clear_wrapper, \
+        .freeFunc = _cboil_free_wrapper, \
+        .mallocFunc = _cboil_malloc_wrapper, \
+        .reallocFunc = _cboil_realloc_wrapper, \
+        .cml = &_cboil_memlib, \
+        .setMemFuncs = _cboil_setMemFuncs_wrapper, \
+    }
+
+#define CBOIL_CLEANUP() \
+    _global_cboil_context = NULL
 
 #define INITIAL_CAPACITY 2  // must not be zero
 #define OFFSET 14695981039346656037UL

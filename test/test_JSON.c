@@ -7,6 +7,7 @@
 #include <CBoil/printutils.h>
 
 int main() {
+    CBOIL_INIT();
     TESTS(
         TEST(
             Capture* res = CBoil.parse(&calculator, "inputLine", "1");
@@ -232,8 +233,9 @@ int main() {
             ASSERT(factorRules, "Expected factor['rules']\n");
             ASSERT(strcmp(CSON.getStringFromArray(factorRules, 0), "factor") == 0, "Expected factor['rules'][0] == 'factor'\n");
             
-            CSON.clear(term);
+            CSON.clear(rules);
         )
     );
+    CBOIL_CLEANUP();
     return 0;
 }

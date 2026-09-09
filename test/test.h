@@ -3,6 +3,7 @@
 
 int* precalc;
 
+// Forward declarations
 int calculate_expression(Capture* expr);
 
 int calculate_factor(Capture* factor) {
