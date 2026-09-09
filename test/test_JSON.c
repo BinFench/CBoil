@@ -3,11 +3,17 @@
 
 #include "test.h"
 #include <CSON.h>
+#include <Gladiator.h>
 #include <CBoil.h>
 #include <CBoil/printutils.h>
 
 int main() {
     CBOIL_INIT();
+    CSON_INIT();
+    GLADIATOR_INIT(32768);
+    CBoil.setMemFuncs(Gladiator.free, Gladiator.malloc, Gladiator.realloc);
+    CSON.setMemFuncs(Gladiator.free, Gladiator.malloc, Gladiator.realloc);
+    CSON.setSegmentSize(131072);
     TESTS(
         TEST(
             Capture* res = CBoil.parse(&calculator, "inputLine", "1");
@@ -236,6 +242,6 @@ int main() {
             CSON.clear(rules);
         )
     );
-    CBOIL_CLEANUP();
+    Gladiator.destroy();
     return 0;
 }

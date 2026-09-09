@@ -61,8 +61,18 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos);
 
 #include <CSON.h>
 
-JSONObject* ruleToJSON(const char* rule);
-JSONObject* captureToJSON(Capture* cap);
+static inline JSONObject* _captureToJSON_impl(JSONObject* (*parse)(char*), Capture* capture) {
+    dumpCapture(dump, capture);
+    return parse(dump);
+}
+
+static inline JSONObject* _ruleToJSON_impl(JSONObject* (*parse)(char*), const char* rule) {
+    dumpRule(dump, "rule", rule);
+    return parse(dump);
+}
+
+#define captureToJSON(capture) _captureToJSON_impl(CSON.parse, capture)
+#define ruleToJSON(rule) _ruleToJSON_impl(CSON.parse, rule)
 
 #endif
 

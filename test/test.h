@@ -7,6 +7,7 @@ int* precalc;
 int calculate_expression(Capture* expr);
 
 int calculate_factor(Capture* factor) {
+    CBOIL_INIT();
     if (CBoil.get(factor, "number"))
         return atoi(CBoil.get(factor, "number")->captures->firstCap->str);
     return calculate_expression(CBoil.get(factor, "expression")->captures);
@@ -18,6 +19,7 @@ void* factor(Capture* factor) {
 }
 
 int calculate_term(Capture* term) {
+    CBOIL_INIT();
     CaptureKVList* factors = CBoil.get(term, "factor");
     int result = 0;
     if (factors->matches > 0) {
@@ -41,6 +43,7 @@ void* term(Capture* term) {
 }
 
 int calculate_expression(Capture* expr) {
+    CBOIL_INIT();
     CaptureKVList* terms = CBoil.get(expr, "term");
     int result = 0;
     if (terms->matches > 0) {
@@ -103,6 +106,7 @@ RULES(calculator,
 );
 
 int calculate(char* equation) {
+    CBOIL_INIT();
     Capture* res = CBoil.parse(&calculator, "inputLine", equation);
     int result = 0;
     if (res) {

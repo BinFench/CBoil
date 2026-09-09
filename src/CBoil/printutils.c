@@ -322,21 +322,3 @@ int writeRule(char* dump, Rule* rule, int* off, int indent, int pos) {
 
     return newPos;
 }
-
-#ifdef CSONDEP
-#include <CSON.h>
-
-JSONObject* ruleToJSON(const char* rule) {
-    char* name = "rule";
-    dumpRule(dump, name, rule);
-
-    return CSON.parse(dump);
-}
-
-JSONObject* captureToJSON(Capture* capture) {
-    dumpCapture(dump, capture);
-
-    return CSON.parse(dump);
-}
-
-#endif

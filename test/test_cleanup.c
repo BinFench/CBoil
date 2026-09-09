@@ -83,6 +83,5 @@ int main() {
             ASSERT(strcmp(expected_name, "transform_number_cleanup_cleanup_number") == 0, "Expected cleanup pair name pattern\n");
         )
     );
-    CBOIL_CLEANUP();
     return 0;
 }

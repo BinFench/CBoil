@@ -263,6 +263,5 @@ int main() {
             CBoil.clear(res);
         )
     );
-    CBOIL_CLEANUP();
     return 0;
 }
