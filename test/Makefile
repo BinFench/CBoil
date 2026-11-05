@@ -4,7 +4,7 @@ DEBUG_FLAGS= -g
 RELEASE_FLAGS= -O3
 LIBS= -lCBoil
 
-default: test-match test-cleanup
+default: test-match test-cleanup test-backtrack
 
 test-match:
 	@$(CC) $(CFLAGS) $(RELEASE_FLAGS) -o test test_match.c $(LIBS)
@@ -30,7 +30,19 @@ test-cleanup-mem:
 	@valgrind -v --track-origins=yes --leak-check=full --show-leak-kinds=all ./test
 	@rm test
 
-test-mem: test-match-mem test-cleanup-mem
+test-backtrack:
+	@$(CC) $(CFLAGS) $(RELEASE_FLAGS) -o test test_backtrack.c $(LIBS)
+	@sudo chmod 0755 test
+	@./test
+	@rm test
+
+test-backtrack-mem:
+	@$(CC) $(CFLAGS) $(RELEASE_FLAGS) -o test test_backtrack.c $(LIBS)
+	@sudo chmod 0755 test
+	@valgrind -v --track-origins=yes --leak-check=full --show-leak-kinds=all ./test
+	@rm test
+
+test-mem: test-match-mem test-cleanup-mem test-backtrack-mem
 
 test-json:
 	@$(CC) $(CFLAGS) $(RELEASE_FLAGS) -o test test_JSON.c -Wno-maybe-uninitialized $(LIBS) -lCSON -DCSONDEP

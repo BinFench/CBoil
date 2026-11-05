@@ -122,6 +122,29 @@ CaptureKVList* cboil_get(Capture* capture, const char* name) {
     return NULL;
 }
 
+static void resizeTable(CBoilMemLib* cml, Capture* parent, uint16_t capacity) {
+    // Keys are placed by hash & (capacity - 1), so all of them must be placed again in a resized table
+    CaptureKVList* old = parent->subcaptures;
+    uint16_t oldCapacity = parent->capacity;
+
+    parent->subcaptures = cml->mallocFunc(capacity*sizeof(CaptureKVList));
+    parent->capacity = capacity;
+    for (int i = 0; i < capacity; i++)
+        parent->subcaptures[i] = (CaptureKVList){NULL, 0, NULL};
+
+    for (int i = 0; i < oldCapacity; i++) {
+        if (!old[i].key) continue;
+        size_t index = (size_t)(hash_key(old[i].key) & (uint64_t)(capacity - 1));
+        while (parent->subcaptures[index].key) {
+            index++;
+            if (index >= capacity) index = 0;
+        }
+        parent->subcaptures[index] = old[i];
+    }
+
+    if (old) cml->freeFunc(old);
+}
+
 static Capture* insert(CBoilMemLib* cml, Capture* parent, Capture child) {
     // Given a parent and child Captures, perform hash insertion
     if (!parent) {
@@ -131,14 +154,7 @@ static Capture* insert(CBoilMemLib* cml, Capture* parent, Capture child) {
     }
     CaptureKVList* match = cboil_get(parent, child.name);
     if (!match && parent->numKVs >= parent->capacity / 2) {
-        if (parent->capacity == 0) parent->capacity = INITIAL_CAPACITY;
-        else parent->capacity *= 2;
-
-        parent->subcaptures = cml->reallocFunc(parent->subcaptures, parent->capacity*sizeof(CaptureKVList));
-        if (parent->capacity == INITIAL_CAPACITY) for (int i = 0; i < INITIAL_CAPACITY; i++)
-            parent->subcaptures[i] = (CaptureKVList){NULL, 0, NULL};
-        else for (int i = parent->capacity / 2; i < parent->capacity; i++)
-            parent->subcaptures[i] = (CaptureKVList){NULL, 0, NULL};
+        resizeTable(cml, parent, parent->capacity ? parent->capacity * 2 : INITIAL_CAPACITY);
     } else if (match) {
         match->matches++;
         match->captures = cml->reallocFunc(match->captures, match->matches*sizeof(Capture));
@@ -180,6 +196,98 @@ static void redir(Capture* old, Capture* new) {
 }
 
 static void _clear(CBoilMemLib* cml, Capture* capture, bool isRoot);
+static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr);
+
+typedef struct KeyCount {
+    const char* key;
+    uint16_t matches;
+} KeyCount;
+
+static void rollback(CBoilMemLib* cml, Capture* capture, KeyCount* counts, uint16_t numCounts, Token* lastCap, bool hadStr, uint16_t size) {
+    // Undo everything added to an in-progress capture since counts, lastCap and size were recorded
+
+    // Tokens are only ever added or appended to at lastCap, so drop the newer ones and truncate
+    while (capture->lastCap != lastCap) {
+        Token* prev = capture->lastCap->prev;
+        if (capture->lastCap->str) cml->freeFunc(capture->lastCap->str);
+        cml->freeFunc(capture->lastCap);
+        capture->lastCap = prev;
+    }
+
+    if (lastCap) {
+        lastCap->next = NULL;
+        if (hadStr) {
+            lastCap->str[size] = '\0';
+            lastCap->size = size;
+        } else if (lastCap->str) {
+            cml->freeFunc(lastCap->str);
+            lastCap->str = NULL;
+            lastCap->size = 0;
+        }
+    } else {
+        capture->firstCap = NULL;
+        capture->numTokens = 0;
+    }
+
+    bool removedKey = false;
+    for (int i = 0; i < capture->capacity; i++) {
+        CaptureKVList* list = capture->subcaptures + i;
+        if (!list->key) continue;
+
+        uint16_t keep = 0;
+        for (int j = 0; j < numCounts; j++) {
+            if (strcmp(counts[j].key, list->key) == 0) {
+                keep = counts[j].matches;
+                break;
+            }
+        }
+
+        for (int j = keep; j < list->matches; j++) _clear(cml, list->captures + j, false);
+        list->matches = keep;
+
+        if (keep == 0) {
+            cml->freeFunc(list->captures);
+            *list = (CaptureKVList){NULL, 0, NULL};
+            capture->numKVs--;
+            removedKey = true;
+        }
+    }
+
+    // _clear only releases the table of a capture with keys
+    if (capture->numKVs == 0 && capture->subcaptures) {
+        cml->freeFunc(capture->subcaptures);
+        capture->subcaptures = NULL;
+        capture->capacity = 0;
+    } else if (removedKey) {
+        // Removing a key can break the probe chain of another
+        resizeTable(cml, capture, capture->capacity);
+    }
+}
+
+static Capture* attempt(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr) {
+    // Parse a subrule that is allowed to fail.  It may have progressed before failing, so on
+    // failure restore src and capture so the caller can carry on as if it was never tried.
+    char* start = *src;
+    uint16_t numCounts = 0;
+    KeyCount counts[(capture ? capture->numKVs : 0) + 1];
+    Token* lastCap = capture ? capture->lastCap : NULL;
+    bool hadStr = lastCap && lastCap->str;
+    uint16_t size = lastCap ? lastCap->size : 0;
+
+    if (capture) {
+        for (int i = 0; i < capture->capacity; i++) {
+            if (capture->subcaptures[i].key)
+                counts[numCounts++] = (KeyCount){capture->subcaptures[i].key, capture->subcaptures[i].matches};
+        }
+    }
+
+    Capture* cap = _parse(cml, ruleSet, rule, src, capture, match, off, curr);
+    if (*match) return cap;
+
+    *src = start;
+    if (capture) rollback(cml, capture, counts, numCounts, lastCap, hadStr, size);
+    return capture;
+}
 
 static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr) {
     // Walk Rule tree and parse by current Rule
@@ -312,7 +420,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
             while (idx < rule->numChildren) {
                 *match = true;
                 if (rule->child[offset] == '\0') {
-                    cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                    cap = attempt(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                     offset++;
                     if (*match) break;
                 } else if (compString(cml, src, capture, rule->child+offset, &offset)) {
@@ -379,7 +487,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
                 Capture* prevCap = cap;
 
                 if (rule->child[offset] == '\0')
-                    cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                    cap = attempt(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                 else if (!compString(cml, src, capture, rule->child+offset, &offset)) *match = false;
 
                 if (*match) {
@@ -406,11 +514,9 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
         case OPTIONAL:
             // Always match, but only progress if subrule matches
             if (rule->child[offset] == '\0') {
-                cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                cap = attempt(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
                 if (match && !cap) cap = capture;
             } else compString(cml, src, capture, rule->child+offset, &offset);
-            
-            if (!*match) *src = currSrc;
 
             *match = true;
             // Rule size is size of Header + size of subrule + 1 for termination
