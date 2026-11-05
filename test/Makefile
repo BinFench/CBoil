@@ -4,7 +4,7 @@ DEBUG_FLAGS= -g
 RELEASE_FLAGS= -O3
 LIBS= -lCBoil
 
-default: test-match test-cleanup test-backtrack test-tokens
+default: test-match test-cleanup test-backtrack test-tokens test-primitives test-fuzz
 
 test-match:
 	@$(CC) $(CFLAGS) $(RELEASE_FLAGS) -o test test_match.c $(LIBS)
@@ -54,7 +54,22 @@ test-tokens-mem:
 	@valgrind -v --track-origins=yes --leak-check=full --show-leak-kinds=all ./test
 	@rm test
 
-test-mem: test-match-mem test-cleanup-mem test-backtrack-mem test-tokens-mem
+test-primitives:
+	@$(CC) $(CFLAGS) $(RELEASE_FLAGS) -o test test_primitives.c $(LIBS)
+	@sudo chmod 0755 test
+	@./test
+	@rm test
+
+test-primitives-mem:
+	@$(CC) $(CFLAGS) $(RELEASE_FLAGS) -o test test_primitives.c $(LIBS)
+	@sudo chmod 0755 test
+	@valgrind -v --track-origins=yes --leak-check=full --show-leak-kinds=all ./test
+	@rm test
+
+test-fuzz:
+	@python3 test_fuzz.py
+
+test-mem: test-match-mem test-cleanup-mem test-backtrack-mem test-tokens-mem test-primitives-mem
 
 test-json:
 	@$(CC) $(CFLAGS) $(RELEASE_FLAGS) -o test test_JSON.c -Wno-maybe-uninitialized $(LIBS) -lCSON -DCSONDEP

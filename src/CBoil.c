@@ -67,8 +67,8 @@ static void _traverse(Rule* rule, uint16_t* offset) {
             break;
 
         case CHARRANGE:
-            // Rule stores two chars
-            *offset += 2 + HEADER_SIZE;
+            // Rule stores two chars + null termination
+            *offset += 3 + HEADER_SIZE;
             break;
 
         case FIRSTOF:
@@ -85,6 +85,7 @@ static void _traverse(Rule* rule, uint16_t* offset) {
             *offset += strlen(rule->child) + 1 + HEADER_SIZE;
             break;
 
+        case TRANSFORM:
         case CAPTURE:
             // Rule has string + subrule
             if (rule->child[strlen(rule->child)+1] == '\0') {_traverse((Rule*)(rule->child+strlen(rule->child)+1), &off); off++;}
@@ -318,11 +319,36 @@ static Capture* attempt(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** s
     return capture;
 }
 
+static bool anyChildMatches(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** src, uint16_t* off) {
+    // Check the subrules here in order, without consuming input or keeping captures
+    char* start = *src;
+    bool found = false;
+    uint8_t idx = 0;
+    uint16_t offset = 0;
+
+    while (idx < rule->numChildren && !found) {
+        bool match = true;
+        if (rule->child[offset] == '\0') {
+            Capture* root = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, &match, &offset);
+            if (root) _clear(cml, root, true);
+            offset++;
+        } else match = compString(cml, src, NULL, rule->child+offset, &offset);
+
+        *src = start;
+        found = match;
+        idx++;
+    }
+
+    // Rule size is size of Header + size of all children rules
+    *off += traverse(idx, rule, &offset) + HEADER_SIZE;
+    return found;
+}
+
 static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off) {
     // Walk Rule tree and parse by current Rule
     Capture* cap = capture;
     Capture* seqCap;
-    transformFunc tf;
+    transformFunc tf = NULL;
     char* currSrc = *src;
     Capture newCap;
     uint8_t idx = 0;
@@ -336,12 +362,9 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
     char max;
     switch(rule->type) {
         case ALL:
-            if (strlen(*src) == 0) {
-                *match = false;
-                break;
-            }
             // Matches any char
-            progress(cml, src, capture, 1);
+            if (**src != '\0') progress(cml, src, capture, 1);
+            else *match = false;
 
             // Rule size is just size of struct, since no children
             *off += RULE_SIZE;
@@ -349,21 +372,8 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
 
         case ANYOF:
             // If any subrule matches, match char
-            while (idx < rule->numChildren) {
-                if (rule->child[offset] == '\0') {
-                    cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset);
-                    offset++;
-                    if (*match) break;
-                } else if (compString(cml, src, NULL, rule->child+offset, &offset)) {
-                    *match = true;
-                    break;
-                } else *match = false;
-                idx++;
-            }
-
+            *match = anyChildMatches(cml, ruleSet, rule, src, off) && **src != '\0';
             if (*match) progress(cml, src, capture, 1);
-            // Rule size is size of Header + size of all children rules
-            *off += traverse(++idx, rule, &offset) + HEADER_SIZE;
             break;
 
         case TRANSFORM:
@@ -378,32 +388,27 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
                 cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, &newCap, match, &offset);
             else if (!compString(cml, src, &newCap, rule->child+offset, &offset)) *match = false;
 
+            // A transform can only match if its function exists
+            if (rule->type == TRANSFORM && *match) {
+                for (int i = 0; ruleSet && i < ruleSet->transformSize; i++) {
+                    if (strcmp(rule->child, ruleSet->pairs[ruleSet->ruleSize + i].nfp.name) == 0) {
+                        tf = ruleSet->pairs[ruleSet->ruleSize + i].nfp.function;
+                        break;
+                    }
+                }
+                *match = tf != NULL;
+            }
+
             // Upon match, add new Capture to AST
             if (*match) {
                 trimTokens(cml, &newCap);
                 cap = insert(cml, capture, newCap);
                 redir(cap);
                 splitTokens(cml, capture);
+                if (rule->type == TRANSFORM) cap->structure = tf(cap);
             } else {
                 _clear(cml, &newCap, false);
-            }
-
-            if (rule->type == TRANSFORM && (!ruleSet || ruleSet->transformSize == 0)) *match = false;
-
-            if (rule->type == TRANSFORM && *match) {
-                for (int i = 0; i < ruleSet->transformSize; i++) {
-                    if (strcmp(rule->child, ruleSet->pairs[ruleSet->ruleSize + i].nfp.name) == 0) {
-                        found = true;
-                        tf = ruleSet->pairs[ruleSet->ruleSize + i].nfp.function;
-                        break;
-                    }
-                }
-                *match = found;
-            }
-
-            if (rule->type == TRANSFORM && *match) {
-                void* structure = tf(cap);
-                cap->structure = structure;
+                cap = capture;
             }
 
             // Rule size is size of Header + size of subrule + 1 for termination if subrule is a nested rule
@@ -424,7 +429,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
                 max = b;
             }
 
-            if (min <= **src && max >= **src) progress(cml, src, capture, 1);
+            if (**src != '\0' && min <= **src && max >= **src) progress(cml, src, capture, 1);
             else *match = false;
 
             // Size of rule is size of Header + 2 chars
@@ -482,26 +487,8 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
 
         case NONEOF:
             // If no subrules match, match char
-            while (idx < rule->numChildren) {
-                if (rule->child[offset] == '\0') {
-                    cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset);
-                    offset++;
-                    if (*match) break;
-                } else if (compString(cml, src, NULL, rule->child+offset, &offset)) *match = true;
-                else *match = false;
-                
-                if (*match) break;
-
-                idx++;
-            }
-
-            if (!*match)
-                progress(cml, src, capture, 1);
-
-            *match = !*match;
-
-            // Rule size is size of Header + size of all children rules
-            *off += traverse(++idx, rule, &offset) + HEADER_SIZE;
+            *match = !anyChildMatches(cml, ruleSet, rule, src, off) && **src != '\0';
+            if (*match) progress(cml, src, capture, 1);
             break;
 
         case ONEORMORE:
@@ -509,6 +496,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
             while (*match) {
                 offset = 0;
                 Capture* prevCap = cap;
+                char* iterSrc = *src;
 
                 if (rule->child[offset] == '\0')
                     cap = attempt(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset);
@@ -520,6 +508,8 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
                     // independent heap root; a superseded one has no other
                     // owner, so free it here.
                     if (!capture && prevCap && prevCap != cap) _clear(cml, prevCap, true);
+                    // A match that consumed nothing would match the same way forever
+                    if (*src == iterSrc) break;
                 } else {
                     // This attempt produced nothing (or a now-dangling cap from
                     // its own failure cleanup) - keep the last successful match
@@ -573,7 +563,11 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
                     seqCap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset);
-                    if (seqCap) cap = seqCap;
+                    if (seqCap) {
+                        // Without a parent capture only the last one is returned, nothing else owns the one before it
+                        if (!capture && cap && cap != seqCap) _clear(cml, cap, true);
+                        cap = seqCap;
+                    }
                     offset++;
                     if (!*match) break;
                 } else if (!compString(cml, src, capture, rule->child+offset, &offset)) {
@@ -597,26 +591,18 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
             break;
 
         case TEST:
-            // Match subrule, never progress
-            if (rule->child[offset] == '\0')
-                cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset);
-            else if (!compString(cml, src, NULL, rule->child+offset, &offset)) *match = false;
-            
-            // Rule size is size of Header + size of subrule
-            *off += offset + HEADER_SIZE;
-            *src = currSrc;
-            break;
-
         case TESTNOT:
-            // Match is subrule does not match, never progress
-            if (rule->child[offset] == '\0')
-                cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset);
-            else if (!compString(cml, src, NULL, rule->child+offset, &offset)) *match = false;
+            // Match subrule, never progress or keep captures
+            if (rule->child[offset] == '\0') {
+                seqCap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset);
+                if (seqCap) _clear(cml, seqCap, true);
+            } else if (!compString(cml, src, NULL, rule->child+offset, &offset)) *match = false;
 
-            *match = !*match;
+            // Match is subrule does not match
+            if (rule->type == TESTNOT) *match = !*match;
 
-            // Rule size is size of Header + size of subrule
-            *off += offset + HEADER_SIZE;
+            // Rule size is size of Header + size of subrule + 1 for termination if subrule is a nested rule
+            *off += offset + HEADER_SIZE + ((rule->child[0] == '\0') ? 1 : 0);
             *src = currSrc;
             break;
     }
@@ -633,6 +619,7 @@ Capture* cboil_parse(CBoilMemLib* cml, RuleSet* ruleSet, const char* ruleName, c
             rule = (Rule*)ruleSet->pairs[i].nrp.rule;
         }
     }
+    if (rule == NULL) return NULL;
     uint16_t offset = 0;
     Capture* cap = _parse(cml, ruleSet, rule, &src, NULL, &match, &offset);
 
@@ -697,5 +684,5 @@ static void _clear(CBoilMemLib* cml, Capture* capture, bool isRoot) {
 }
 
 void cboil_clear(CBoilMemLib* cml, Capture* capture) {
-    _clear(cml, capture, true);
+    if (capture) _clear(cml, capture, true);
 }
