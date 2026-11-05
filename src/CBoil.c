@@ -16,9 +16,32 @@ static void progress(CBoilMemLib* cml, char** src, Capture* capture, int amount)
         capture->numTokens++;
         append(cml, capture->firstCap, *src, amount);
     } else if (capture) {
+        // An empty lastCap was left by a subcapture, and this text is what makes it a real Token
+        if (!capture->lastCap->str) capture->numTokens++;
         append(cml, capture->lastCap, *src, amount);
     }
     *src += amount;
+}
+
+static void splitTokens(CBoilMemLib* cml, Capture* capture) {
+    // A subcapture ended the current string of text, so any further text goes in a new Token.
+    // With no text yet there is nothing to separate from, and the first text makes the first Token.
+    if (!capture || !capture->lastCap || !capture->lastCap->str) return;
+
+    Token* token = cml->mallocFunc(sizeof(Token));
+    *token = (Token){0, NULL, capture, NULL, capture->lastCap};
+    capture->lastCap->next = token;
+    capture->lastCap = token;
+}
+
+static void trimTokens(CBoilMemLib* cml, Capture* capture) {
+    // A finished capture ends on its final string of text, not on an empty Token that no text followed
+    if (!capture->lastCap || capture->lastCap->str) return;
+
+    Token* token = capture->lastCap;
+    capture->lastCap = token->prev;
+    capture->lastCap->next = NULL;
+    cml->freeFunc(token);
 }
 
 static bool compString(CBoilMemLib* cml, char** src, Capture* capture, const char* string, uint16_t* offset) {
@@ -122,6 +145,12 @@ CaptureKVList* cboil_get(Capture* capture, const char* name) {
     return NULL;
 }
 
+static void redir(Capture* capture) {
+    // A Capture was moved, so point its Tokens at its new address
+    for (Token* token = capture->firstCap; token; token = token->next)
+        token->capture = capture;
+}
+
 static void resizeTable(CBoilMemLib* cml, Capture* parent, uint16_t capacity) {
     // Keys are placed by hash & (capacity - 1), so all of them must be placed again in a resized table
     CaptureKVList* old = parent->subcaptures;
@@ -159,6 +188,7 @@ static Capture* insert(CBoilMemLib* cml, Capture* parent, Capture child) {
         match->matches++;
         match->captures = cml->reallocFunc(match->captures, match->matches*sizeof(Capture));
         match->captures[match->matches - 1] = child;
+        for (int i = 0; i < match->matches - 1; i++) redir(match->captures + i);
         // Preserve ruleSet from parent if child doesn't have one
         if (!match->captures[match->matches - 1].ruleSet && parent->ruleSet) {
             match->captures[match->matches - 1].ruleSet = parent->ruleSet;
@@ -184,50 +214,48 @@ static Capture* insert(CBoilMemLib* cml, Capture* parent, Capture child) {
     return parent->subcaptures[index].captures;
 }
 
-static void redir(Capture* old, Capture* new) {
-    Token* token = old->firstCap;
-    for (int i = 0; i < old->numTokens;) {
-        if (old == token->capture) {
-            i++;
-            token->capture = new;
-        }
-        token = token->next;
-    }
-}
-
 static void _clear(CBoilMemLib* cml, Capture* capture, bool isRoot);
-static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr);
+static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off);
 
 typedef struct KeyCount {
     const char* key;
     uint16_t matches;
 } KeyCount;
 
-static void rollback(CBoilMemLib* cml, Capture* capture, KeyCount* counts, uint16_t numCounts, Token* lastCap, bool hadStr, uint16_t size) {
-    // Undo everything added to an in-progress capture since counts, lastCap and size were recorded
+typedef struct CaptureState {
+    KeyCount* counts;
+    uint16_t numCounts;
+    Token* lastCap;
+    bool hadStr;
+    uint16_t size;
+    uint16_t numTokens;
+} CaptureState;
 
-    // Tokens are only ever added or appended to at lastCap, so drop the newer ones and truncate
-    while (capture->lastCap != lastCap) {
+static void rollback(CBoilMemLib* cml, Capture* capture, CaptureState* state) {
+    // Undo everything added to an in-progress capture since state was recorded
+
+    // Text is only ever added at lastCap, so drop the newer Tokens and truncate the one left
+    while (capture->lastCap != state->lastCap) {
         Token* prev = capture->lastCap->prev;
         if (capture->lastCap->str) cml->freeFunc(capture->lastCap->str);
         cml->freeFunc(capture->lastCap);
         capture->lastCap = prev;
     }
 
-    if (lastCap) {
-        lastCap->next = NULL;
-        if (hadStr) {
-            lastCap->str[size] = '\0';
-            lastCap->size = size;
-        } else if (lastCap->str) {
-            cml->freeFunc(lastCap->str);
-            lastCap->str = NULL;
-            lastCap->size = 0;
+    if (state->lastCap) {
+        state->lastCap->next = NULL;
+        if (state->hadStr) {
+            state->lastCap->str[state->size] = '\0';
+            state->lastCap->size = state->size;
+        } else if (state->lastCap->str) {
+            cml->freeFunc(state->lastCap->str);
+            state->lastCap->str = NULL;
+            state->lastCap->size = 0;
         }
     } else {
         capture->firstCap = NULL;
-        capture->numTokens = 0;
     }
+    capture->numTokens = state->numTokens;
 
     bool removedKey = false;
     for (int i = 0; i < capture->capacity; i++) {
@@ -235,9 +263,9 @@ static void rollback(CBoilMemLib* cml, Capture* capture, KeyCount* counts, uint1
         if (!list->key) continue;
 
         uint16_t keep = 0;
-        for (int j = 0; j < numCounts; j++) {
-            if (strcmp(counts[j].key, list->key) == 0) {
-                keep = counts[j].matches;
+        for (int j = 0; j < state->numCounts; j++) {
+            if (strcmp(state->counts[j].key, list->key) == 0) {
+                keep = state->counts[j].matches;
                 break;
             }
         }
@@ -264,32 +292,33 @@ static void rollback(CBoilMemLib* cml, Capture* capture, KeyCount* counts, uint1
     }
 }
 
-static Capture* attempt(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr) {
+static Capture* attempt(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off) {
     // Parse a subrule that is allowed to fail.  It may have progressed before failing, so on
     // failure restore src and capture so the caller can carry on as if it was never tried.
     char* start = *src;
-    uint16_t numCounts = 0;
     KeyCount counts[(capture ? capture->numKVs : 0) + 1];
-    Token* lastCap = capture ? capture->lastCap : NULL;
-    bool hadStr = lastCap && lastCap->str;
-    uint16_t size = lastCap ? lastCap->size : 0;
+    CaptureState state = {counts, 0, NULL, false, 0, 0};
 
     if (capture) {
+        state.lastCap = capture->lastCap;
+        state.hadStr = capture->lastCap && capture->lastCap->str;
+        state.size = capture->lastCap ? capture->lastCap->size : 0;
+        state.numTokens = capture->numTokens;
         for (int i = 0; i < capture->capacity; i++) {
             if (capture->subcaptures[i].key)
-                counts[numCounts++] = (KeyCount){capture->subcaptures[i].key, capture->subcaptures[i].matches};
+                counts[state.numCounts++] = (KeyCount){capture->subcaptures[i].key, capture->subcaptures[i].matches};
         }
     }
 
-    Capture* cap = _parse(cml, ruleSet, rule, src, capture, match, off, curr);
+    Capture* cap = _parse(cml, ruleSet, rule, src, capture, match, off);
     if (*match) return cap;
 
     *src = start;
-    if (capture) rollback(cml, capture, counts, numCounts, lastCap, hadStr, size);
+    if (capture) rollback(cml, capture, &state);
     return capture;
 }
 
-static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off, Token* curr) {
+static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** src, Capture* capture, bool* match, uint16_t* off) {
     // Walk Rule tree and parse by current Rule
     Capture* cap = capture;
     Capture* seqCap;
@@ -322,7 +351,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
             // If any subrule matches, match char
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
-                    cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
+                    cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset);
                     offset++;
                     if (*match) break;
                 } else if (compString(cml, src, NULL, rule->child+offset, &offset)) {
@@ -346,20 +375,15 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
             argIsNested = (rule->child[offset] == '\0');
 
             if (argIsNested)
-                cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, &newCap, match, &offset, curr);
+                cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, &newCap, match, &offset);
             else if (!compString(cml, src, &newCap, rule->child+offset, &offset)) *match = false;
 
-            // Upon match, add new Token to AST
+            // Upon match, add new Capture to AST
             if (*match) {
-                if (cap == capture || cap == &newCap || capture) {
-                    curr = cml->mallocFunc(sizeof(Token));
-                    if (!cap || (cap != capture && cap != &newCap)) cap = &newCap;
-                    *curr = (Token){0, NULL, cap, NULL, cap->lastCap};
-                    if (cap->lastCap) cap->lastCap->next = curr;
-                    cap->lastCap = curr;
-                }
+                trimTokens(cml, &newCap);
                 cap = insert(cml, capture, newCap);
-                redir(&newCap, cap);
+                redir(cap);
+                splitTokens(cml, capture);
             } else {
                 _clear(cml, &newCap, false);
             }
@@ -420,7 +444,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
             while (idx < rule->numChildren) {
                 *match = true;
                 if (rule->child[offset] == '\0') {
-                    cap = attempt(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                    cap = attempt(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset);
                     offset++;
                     if (*match) break;
                 } else if (compString(cml, src, capture, rule->child+offset, &offset)) {
@@ -460,7 +484,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
             // If no subrules match, match char
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
-                    cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
+                    cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset);
                     offset++;
                     if (*match) break;
                 } else if (compString(cml, src, NULL, rule->child+offset, &offset)) *match = true;
@@ -487,7 +511,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
                 Capture* prevCap = cap;
 
                 if (rule->child[offset] == '\0')
-                    cap = attempt(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                    cap = attempt(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset);
                 else if (!compString(cml, src, capture, rule->child+offset, &offset)) *match = false;
 
                 if (*match) {
@@ -514,7 +538,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
         case OPTIONAL:
             // Always match, but only progress if subrule matches
             if (rule->child[offset] == '\0') {
-                cap = attempt(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                cap = attempt(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset);
                 if (match && !cap) cap = capture;
             } else compString(cml, src, capture, rule->child+offset, &offset);
 
@@ -530,7 +554,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
                 for (int i = 0; i < ruleSet->ruleSize; i++) {
                     if (strcmp(rule->child, ruleSet->pairs[i].nrp.name) == 0) {
                         found = true;
-                        cap = _parse(cml, ruleSet, (Rule*)ruleSet->pairs[i].nrp.rule, src, capture, match, &offset, curr);
+                        cap = _parse(cml, ruleSet, (Rule*)ruleSet->pairs[i].nrp.rule, src, capture, match, &offset);
                         // Rule size is size of header + string length + null termination
                         *off += strlen(rule->child) + 1 + HEADER_SIZE;
                         break;
@@ -548,7 +572,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
             // Match all subrules
             while (idx < rule->numChildren) {
                 if (rule->child[offset] == '\0') {
-                    seqCap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset, curr);
+                    seqCap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, capture, match, &offset);
                     if (seqCap) cap = seqCap;
                     offset++;
                     if (!*match) break;
@@ -575,7 +599,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
         case TEST:
             // Match subrule, never progress
             if (rule->child[offset] == '\0')
-                cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
+                cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset);
             else if (!compString(cml, src, NULL, rule->child+offset, &offset)) *match = false;
             
             // Rule size is size of Header + size of subrule
@@ -586,7 +610,7 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
         case TESTNOT:
             // Match is subrule does not match, never progress
             if (rule->child[offset] == '\0')
-                cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset, curr);
+                cap = _parse(cml, ruleSet, (Rule*)(rule->child+offset), src, NULL, match, &offset);
             else if (!compString(cml, src, NULL, rule->child+offset, &offset)) *match = false;
 
             *match = !*match;
@@ -610,7 +634,7 @@ Capture* cboil_parse(CBoilMemLib* cml, RuleSet* ruleSet, const char* ruleName, c
         }
     }
     uint16_t offset = 0;
-    Capture* cap = _parse(cml, ruleSet, rule, &src, NULL, &match, &offset, NULL);
+    Capture* cap = _parse(cml, ruleSet, rule, &src, NULL, &match, &offset);
 
     // Set ruleSet on root capture if it exists
     if (cap && !cap->ruleSet) cap->ruleSet = ruleSet;
@@ -622,7 +646,7 @@ Capture* cboil_parseRule(CBoilMemLib* cml, const char* rule, char* src) {
     // Given Rule and string, attempt to match and return top Capture in Rule tree
     bool match = true;
     uint16_t offset = 0;
-    Capture* cap = _parse(cml, NULL, (Rule*)rule, &src, NULL, &match, &offset, NULL);
+    Capture* cap = _parse(cml, NULL, (Rule*)rule, &src, NULL, &match, &offset);
 
     return match ? cap : NULL;
 }
@@ -649,28 +673,11 @@ static void _clear(CBoilMemLib* cml, Capture* capture, bool isRoot) {
     }
 
     Token* token = capture->firstCap;
-    for (int i = 0; i < capture->numTokens;) {
-        if (!token) break;
+    while (token) {
         Token* next = token->next;
-        if (capture == token->capture) {
-            i++;
-            cml->freeFunc(token->str);
-            cml->freeFunc(token);
-        } else if (token == capture->firstCap) {
-            cml->freeFunc(token->str);
-            cml->freeFunc(token);
-        }
+        if (token->str) cml->freeFunc(token->str);
+        cml->freeFunc(token);
         token = next;
-    }
-    if (token) cml->freeFunc(token);
-    if (capture->lastCap != token && capture->lastCap != capture->firstCap) {
-        Token* trailing = capture->lastCap;
-        while (trailing && trailing != token && trailing != capture->firstCap) {
-            Token* prev = trailing->prev;
-            cml->freeFunc(trailing->str);
-            cml->freeFunc(trailing);
-            trailing = prev;
-        }
     }
 
     if (capture->numKVs != 0) {
