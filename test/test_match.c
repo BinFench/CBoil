@@ -261,6 +261,60 @@ int main() {
             Capture* res = CBoil.parse(&precalculator, "inputLine", "(7*2+6)/10");
             ASSERT(test == 2, "Expected precalc == 2\n");
             CBoil.clear(res);
+        ),
+        // ONEORMORE of a plain string must not throw off whatever rule follows it
+        TEST(
+            Capture* res = CBoil.parseRule(capture("pass", sequence(oneormore("a"), "de")), "ade");
+            ASSERT(res, "Expected string to pass\n");
+            ASSERT(strcmp(res->firstCap->str, "ade") == 0, "Expected to match 'ade', got '%s'\n", res->firstCap->str);
+            CBoil.clear(res);
+        ),
+        TEST(
+            Capture* res = CBoil.parseRule(capture("fail", sequence(oneormore("a"), "de")), "ae");
+            ASSERT(!res, "Expected string to fail\n");
+        ),
+        TEST(
+            Capture* res = CBoil.parseRule(capture("pass", sequence(oneormore("ab"), "c")), "ababc");
+            ASSERT(res, "Expected string to pass\n");
+            ASSERT(strcmp(res->firstCap->str, "ababc") == 0, "Expected to match 'ababc', got '%s'\n", res->firstCap->str);
+            CBoil.clear(res);
+        ),
+        TEST(
+            Capture* res = CBoil.parseRule(capture("pass", firstof(oneormore("a"), "b")), "b");
+            ASSERT(res, "Expected string to pass\n");
+            ASSERT(strcmp(res->firstCap->str, "b") == 0, "Expected to match 'b', got '%s'\n", res->firstCap->str);
+            CBoil.clear(res);
+        ),
+        TEST(
+            Capture* res = CBoil.parseRule(capture("pass", sequence(capture("k", oneormore("a")), "de")), "aade");
+            ASSERT(res, "Expected string to pass\n");
+            ASSERT(strcmp(res->firstCap->str, "de") == 0, "Expected to match 'de', got '%s'\n", res->firstCap->str);
+            ASSERT(strcmp(CBoil.get(res, "k")->captures->firstCap->str, "aa") == 0, "Expected 'k' to match 'aa'\n");
+            CBoil.clear(res);
+        ),
+        TEST(
+            Capture* res = CBoil.parseRule(capture("pass", sequence(oneormore(oneormore("a")), "de")), "aade");
+            ASSERT(res, "Expected string to pass\n");
+            CBoil.clear(res);
+        ),
+        // ZEROORMORE is built on ONEORMORE, so it is covered with and without a match
+        TEST(
+            Capture* res = CBoil.parseRule(capture("pass", sequence(zeroormore("a"), "de")), "aade");
+            ASSERT(res, "Expected string to pass\n");
+            ASSERT(strcmp(res->firstCap->str, "aade") == 0, "Expected to match 'aade', got '%s'\n", res->firstCap->str);
+            CBoil.clear(res);
+        ),
+        TEST(
+            Capture* res = CBoil.parseRule(capture("pass", sequence(zeroormore("a"), "de")), "de");
+            ASSERT(res, "Expected string to pass\n");
+            ASSERT(strcmp(res->firstCap->str, "de") == 0, "Expected to match 'de', got '%s'\n", res->firstCap->str);
+            CBoil.clear(res);
+        ),
+        // ONEORMORE of a nested rule keeps working
+        TEST(
+            Capture* res = CBoil.parseRule(capture("pass", sequence(oneormore(charrange("a", "a")), "de")), "aade");
+            ASSERT(res, "Expected string to pass\n");
+            CBoil.clear(res);
         )
     );
     return 0;

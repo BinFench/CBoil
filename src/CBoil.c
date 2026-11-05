@@ -531,8 +531,8 @@ static Capture* _parse(CBoilMemLib* cml, RuleSet* ruleSet, Rule* rule, char** sr
 
             if (firstMatch) *match = true;
 
-            // Rule size is size of Header + size of subrule
-            *off += offset + HEADER_SIZE + 1;
+            // Rule size is size of Header + size of subrule + 1 for termination if subrule is a nested rule
+            *off += offset + HEADER_SIZE + ((rule->child[0] == '\0') ? 1 : 0);
             break;
 
         case OPTIONAL:
